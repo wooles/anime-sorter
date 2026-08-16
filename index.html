@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ręczny sorter anime</title>
+  <title>Ranking anime</title>
 
   <style>
     :root {
@@ -52,14 +52,14 @@
 
     .header-container {
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
-      gap: 16px;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
     }
 
     h1 {
-      margin: 0;
+      margin-top: 0;
+      margin-bottom: 8px;
     }
 
     textarea {
@@ -260,16 +260,16 @@
 
 <body>
   <div class="header-container">
-    <h1>Ręczny sorter anime</h1>
     <button id="themeToggleBtn" class="secondary" type="button">🌙 Ciemny motyw</button>
   </div>
 
-  <p>
-    Wklej własną listę tytułów. Okładki pobiorą się automatycznie tylko po to,
-    żeby łatwiej było rozpoznać tytuły podczas porównywania.
-  </p>
-
   <section id="setup">
+    <h1>Ranking anime</h1>
+
+    <p>
+      Wklej listę tytułów, okładki pobiorą się automatycznie.
+    </p>
+
     <label for="titlesInput">
       Tytuły anime — jeden tytuł na linię:
     </label>
