@@ -614,7 +614,6 @@ Bocchi the Rock!"
               body: formData
             });
           } catch (e) {
-            // W przypadku restrykcyjnych polityk CORS wyślij zapytanie przez corsproxy
             const fallbackData = new FormData();
             fallbackData.append('reqtype', 'fileupload');
             fallbackData.append('time', '72h');
@@ -636,7 +635,6 @@ Bocchi the Rock!"
             throw new Error('Litterbox zwrócił odpowiedź: ' + fileUrl);
           }
 
-          // Automatyczne kopiowanie do schowka
           try {
             await navigator.clipboard.writeText(fileUrl);
           } catch (e) {}
@@ -644,7 +642,7 @@ Bocchi the Rock!"
           uploadResult.innerHTML = `
             <div style="margin: 12px 0; padding: 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
               <div>
-                <strong>Link do obrazu (skopiowano do schowka, ważny 72h):</strong><br />
+                <strong>Link do obrazu (ważny 72h):</strong><br />
                 <a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener">${escapeHtml(fileUrl)}</a>
               </div>
               <button type="button" class="secondary" id="copyUrlBtn">Kopiuj link</button>
