@@ -11,13 +11,14 @@ A client-side pairwise anime and manga ranking tool. Allows users to run through
 * High-resolution PNG image generation of the final ranking card.
 * Direct image upload to Litterbox (Catbox.moe) with automatic clipboard copy.
 * Dark / Light mode toggle with local storage persistence.
+* Multi-language support (English / Polish) with SVG flag toggling.
 * Local storage cache for fetched artwork and query metadata.
 
 ### How to Use
 
 1. Paste a list of anime or manga titles into the input area (one title per line).
-2. Click **Pobierz okładki** to resolve covers and community scores.
-3. Click **Rozpocznij porównywanie** and select preferred titles (or Ties) until the progress bar reaches 100%.
+2. Click **Fetch covers** to resolve covers and community scores.
+3. Click **Start sorting** and select preferred titles (or Ties) until the progress bar reaches 100%.
 4. Review the final ranking and choose to either download the result as a `.png` file or upload it directly to Litterbox for sharing.
 
 ### Running & Deployment
