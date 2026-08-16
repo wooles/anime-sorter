@@ -530,8 +530,8 @@ Bocchi the Rock!"
       const compareAgainBtn = document.getElementById('compareAgainBtn');
       const backFromResultBtn = document.getElementById('backFromResultBtn');
 
-      const STORAGE_KEY = 'manual-anime-sorter:entries:v4';
-      const COVER_CACHE_PREFIX = 'manual-anime-cover:v4:';
+      const STORAGE_KEY = 'manual-anime-sorter:entries:v5';
+      const COVER_CACHE_PREFIX = 'manual-anime-cover:v5:';
       const THEME_KEY = 'manual-anime-sorter:theme:v1';
       const LANG_KEY = 'manual-anime-sorter:lang:v1';
 
@@ -931,8 +931,8 @@ Bocchi the Rock!"
           status: 'pending',
           matchedTitle: '',
           source: '',
-          score: '',
-          scoreSource: ''
+          anilistScore: '',
+          kitsuScore: ''
         };
       }
 
@@ -1080,8 +1080,8 @@ Bocchi the Rock!"
             entry.infoUrl = result.infoUrl || entry.infoUrl || malSearchUrl(entry.name);
             entry.matchedTitle = result.matchedTitle || '';
             entry.source = result.source || '';
-            entry.score = result.score || '';
-            entry.scoreSource = result.scoreSource || '';
+            entry.anilistScore = result.anilistScore || '';
+            entry.kitsuScore = result.kitsuScore || '';
             entry.status = 'ok';
           } catch (err) {
             console.warn(`Failed to fetch cover: ${entry.name}`, err);
@@ -1106,7 +1106,7 @@ Bocchi the Rock!"
       async function getCoverForTitle(title) {
         const cached = readCoverCache(title);
 
-        if (cached && (cached.coverUrl || cached.score)) {
+        if (cached && (cached.coverUrl || cached.anilistScore || cached.kitsuScore)) {
           return cached;
         }
 
@@ -1114,10 +1114,11 @@ Bocchi the Rock!"
         let infoUrl = '';
         let matchedTitle = '';
         let source = '';
-        let score = '';
-        let scoreSource = '';
+        let anilistScore = '';
+        let kitsuScore = '';
         const errors = [];
 
+        // 1. AniList (Okładka + Ocena)
         try {
           const anilistResult = await fetchAnilistData(title);
           if (anilistResult.coverUrl) {
@@ -1126,36 +1127,31 @@ Bocchi the Rock!"
           }
           if (anilistResult.infoUrl) infoUrl = anilistResult.infoUrl;
           if (anilistResult.matchedTitle) matchedTitle = anilistResult.matchedTitle;
-          if (anilistResult.score) {
-            score = anilistResult.score;
-            scoreSource = 'AniList';
-          }
+          if (anilistResult.score) anilistScore = anilistResult.score;
         } catch (err) {
           errors.push('AniList: ' + (err?.message || err));
         }
 
-        if (!coverUrl || !score) {
-          try {
-            await sleep(250);
-            const kitsuResult = await fetchKitsuData(title);
-            if (!coverUrl && kitsuResult.coverUrl) {
-              coverUrl = kitsuResult.coverUrl;
-              source = 'Kitsu';
-            }
-            if (!infoUrl) infoUrl = kitsuResult.infoUrl;
-            if (!matchedTitle) matchedTitle = kitsuResult.matchedTitle;
-            if (!score && kitsuResult.score) {
-              score = kitsuResult.score;
-              scoreSource = 'Kitsu';
-            }
-          } catch (err) {
-            errors.push('Kitsu: ' + (err?.message || err));
+        await sleep(200);
+
+        // 2. Kitsu (Okładka jeśli brak + Ocena)
+        try {
+          const kitsuResult = await fetchKitsuData(title);
+          if (!coverUrl && kitsuResult.coverUrl) {
+            coverUrl = kitsuResult.coverUrl;
+            source = 'Kitsu';
           }
+          if (!infoUrl) infoUrl = kitsuResult.infoUrl;
+          if (!matchedTitle) matchedTitle = kitsuResult.matchedTitle;
+          if (kitsuResult.score) kitsuScore = kitsuResult.score;
+        } catch (err) {
+          errors.push('Kitsu: ' + (err?.message || err));
         }
 
+        // 3. MyAnimeList (Jikan) jako zapasowa okładka
         if (!coverUrl) {
           try {
-            await sleep(350);
+            await sleep(250);
             const jikanResult = await fetchJikanCover(title);
             if (jikanResult.coverUrl) {
               coverUrl = jikanResult.coverUrl;
@@ -1168,7 +1164,7 @@ Bocchi the Rock!"
           }
         }
 
-        if (!coverUrl && !matchedTitle && !score) {
+        if (!coverUrl && !matchedTitle && !anilistScore && !kitsuScore) {
           throw new Error(errors.join(' | '));
         }
 
@@ -1176,9 +1172,9 @@ Bocchi the Rock!"
           coverUrl,
           infoUrl: infoUrl || malSearchUrl(title),
           matchedTitle: matchedTitle || title,
-          source: source || 'AniList',
-          score,
-          scoreSource
+          source: source || (anilistScore ? 'AniList' : kitsuScore ? 'Kitsu' : ''),
+          anilistScore,
+          kitsuScore
         };
 
         writeCoverCache(title, result);
@@ -1566,8 +1562,8 @@ Bocchi the Rock!"
           status: 'pending',
           matchedTitle: '',
           source: '',
-          score: '',
-          scoreSource: '',
+          anilistScore: '',
+          kitsuScore: '',
           infoUrl: malSearchUrl(entry.name)
         }));
 
@@ -1617,8 +1613,8 @@ Bocchi the Rock!"
                     : 'pending',
               matchedTitle: typeof item.matchedTitle === 'string' ? item.matchedTitle : '',
               source: typeof item.source === 'string' ? item.source : '',
-              score: typeof item.score === 'string' ? item.score : '',
-              scoreSource: typeof item.scoreSource === 'string' ? item.scoreSource : ''
+              anilistScore: typeof item.anilistScore === 'string' ? item.anilistScore : (item.scoreSource === 'AniList' ? item.score : ''),
+              kitsuScore: typeof item.kitsuScore === 'string' ? item.kitsuScore : (item.scoreSource === 'Kitsu' ? item.score : '')
             }));
         } catch (err) {
           console.warn('Error loading title list:', err);
@@ -1880,11 +1876,15 @@ Bocchi the Rock!"
             const row = document.createElement('div');
             row.className = 'ranking-item';
 
-            let scoreText = '';
-            if (entry.score) {
-              const sourceLabel = entry.scoreSource || 'AniList';
-              scoreText = ` • ${escapeHtml(sourceLabel)}: ★ ${escapeHtml(entry.score)}`;
+            const scoreBadges = [];
+            if (entry.anilistScore) {
+              scoreBadges.push(`AniList: ★ ${escapeHtml(entry.anilistScore)}`);
             }
+            if (entry.kitsuScore) {
+              scoreBadges.push(`Kitsu: ★ ${escapeHtml(entry.kitsuScore)}`);
+            }
+
+            const scoreText = scoreBadges.length ? ` • ${scoreBadges.join(' • ')}` : '';
 
             row.innerHTML = `
               <div class="rank-number">${rankForThisCluster}.</div>
