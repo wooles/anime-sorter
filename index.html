@@ -1,0 +1,1299 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ręczny sorter anime</title>
+
+  <style>
+    :root {
+      --bg: #f7f7f7;
+      --text: #111111;
+      --surface: #ffffff;
+      --border: #e2e2e2;
+      --border-input: #bbbbbb;
+      --muted: #666666;
+      --btn-bg: #111111;
+      --btn-text: #ffffff;
+      --btn-secondary: #555555;
+      --link: #0066cc;
+      --card-shadow: rgba(0, 0, 0, 0.08);
+      --thumb-bg: #dddddd;
+    }
+
+    body.dark {
+      --bg: #121214;
+      --text: #e4e4e7;
+      --surface: #1e1e24;
+      --border: #2e2e38;
+      --border-input: #444450;
+      --muted: #a1a1aa;
+      --btn-bg: #e4e4e7;
+      --btn-text: #121214;
+      --btn-secondary: #3f3f46;
+      --link: #60a5fa;
+      --card-shadow: rgba(0, 0, 0, 0.4);
+      --thumb-bg: #2d2d38;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px;
+      background: var(--bg);
+      color: var(--text);
+      transition: background-color 0.2s, color 0.2s;
+    }
+
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      margin: 0;
+    }
+
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border-input);
+      resize: vertical;
+      background: var(--surface);
+      color: var(--text);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 14px 0;
+    }
+
+    button {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 0;
+      background: var(--btn-bg);
+      color: var(--btn-text);
+      cursor: pointer;
+      font-size: 15px;
+      transition: opacity 0.15s;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    button.secondary {
+      background: var(--btn-secondary);
+      color: #fff;
+    }
+
+    button.danger {
+      background: #b91c1c;
+      color: #fff;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .status {
+      margin: 10px 0;
+      font-weight: 700;
+      min-height: 22px;
+    }
+
+    .error {
+      color: #ef4444;
+      font-weight: 700;
+      margin: 10px 0;
+      white-space: pre-wrap;
+    }
+
+    .hidden,
+    [hidden] {
+      display: none !important;
+    }
+
+    .entry-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .entry-thumb {
+      width: 56px;
+      height: 78px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: var(--thumb-bg);
+      flex: 0 0 auto;
+    }
+
+    .entry-title {
+      font-weight: 700;
+    }
+
+    .entry-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .cards {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      align-items: stretch;
+      margin-top: 20px;
+    }
+
+    .card {
+      width: 320px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px var(--card-shadow);
+    }
+
+    .card img {
+      width: 100%;
+      height: 420px;
+      object-fit: cover;
+      border-radius: 12px;
+      background: var(--thumb-bg);
+    }
+
+    .vs {
+      align-self: center;
+      font-size: 30px;
+      font-weight: 900;
+    }
+
+    .ranking-item {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+
+    .ranking-item img {
+      width: 56px;
+      height: 78px;
+      object-fit: cover;
+      border-radius: 8px;
+      background: var(--thumb-bg);
+    }
+
+    .rank-number {
+      width: 38px;
+      font-weight: 900;
+      font-size: 18px;
+    }
+
+    a {
+      color: var(--link);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="header-container">
+    <h1>Ręczny sorter anime</h1>
+    <button id="themeToggleBtn" class="secondary" type="button">🌙 Ciemny motyw</button>
+  </div>
+
+  <p>
+    Wklej własną listę tytułów. Okładki pobiorą się automatycznie tylko po to,
+    żeby łatwiej było rozpoznać tytuły podczas porównywania.
+  </p>
+
+  <section id="setup">
+    <label for="titlesInput">
+      Tytuły anime — jeden tytuł na linię:
+    </label>
+
+    <textarea
+      id="titlesInput"
+      rows="8"
+      placeholder="Frieren: Beyond Journey's End
+Steins;Gate
+Attack on Titan
+Bocchi the Rock!"
+    ></textarea>
+
+    <div class="controls">
+      <button id="addBtn">Dodaj tytuły</button>
+      <button id="fetchCoversBtn" class="secondary">Pobierz okładki</button>
+      <button id="clearCoverCacheBtn" class="secondary">Wyczyść cache okładek</button>
+      <button id="clearListBtn" class="danger">Wyczyść listę</button>
+      <button id="startBtn" disabled>Rozpocznij porównywanie</button>
+    </div>
+
+    <div id="status" class="status" aria-live="polite"></div>
+    <div id="errorBox" class="error hidden"></div>
+    <div id="entriesMeta" class="muted"></div>
+
+    <div id="entryList"></div>
+  </section>
+
+  <section id="compareView" class="hidden">
+    <h2>Które anime jest lepsze?</h2>
+    <div id="compareCounter" class="muted"></div>
+
+    <div class="controls">
+      <button id="cancelCompareBtn" class="danger">Przerwij i wróć do listy</button>
+    </div>
+
+    <div class="cards" id="compareCards">
+      <div class="card" id="cardA"></div>
+      <div class="vs">VS</div>
+      <div class="card" id="cardB"></div>
+    </div>
+  </section>
+
+  <section id="resultView" class="hidden">
+    <h2>Twój ranking</h2>
+    <div id="rankList"></div>
+
+    <div class="controls">
+      <button id="compareAgainBtn">Porównaj jeszcze raz</button>
+      <button id="backFromResultBtn" class="secondary">Wróć do listy</button>
+    </div>
+  </section>
+
+  <script>
+    (() => {
+      const titlesInput = document.getElementById('titlesInput');
+      const addBtn = document.getElementById('addBtn');
+      const fetchCoversBtn = document.getElementById('fetchCoversBtn');
+      const clearCoverCacheBtn = document.getElementById('clearCoverCacheBtn');
+      const clearListBtn = document.getElementById('clearListBtn');
+      const startBtn = document.getElementById('startBtn');
+      const themeToggleBtn = document.getElementById('themeToggleBtn');
+
+      const statusEl = document.getElementById('status');
+      const errorBox = document.getElementById('errorBox');
+      const entriesMeta = document.getElementById('entriesMeta');
+      const entryList = document.getElementById('entryList');
+
+      const setup = document.getElementById('setup');
+      const compareView = document.getElementById('compareView');
+      const compareCards = document.getElementById('compareCards');
+      const cardA = document.getElementById('cardA');
+      const cardB = document.getElementById('cardB');
+      const compareCounter = document.getElementById('compareCounter');
+      const cancelCompareBtn = document.getElementById('cancelCompareBtn');
+
+      const resultView = document.getElementById('resultView');
+      const rankList = document.getElementById('rankList');
+      const compareAgainBtn = document.getElementById('compareAgainBtn');
+      const backFromResultBtn = document.getElementById('backFromResultBtn');
+
+      const STORAGE_KEY = 'manual-anime-sorter:entries:v1';
+      const COVER_CACHE_PREFIX = 'manual-anime-cover:v1:';
+      const THEME_KEY = 'manual-anime-sorter:theme:v1';
+
+      const PLACEHOLDER_COVER =
+        'data:image/svg+xml;utf8,' +
+        encodeURIComponent(
+          `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450"><rect width="100%" height="100%" fill="#888888"></rect><text x="50%" y="50%" font-family="Arial, sans-serif" font-size="22" fill="#ffffff" text-anchor="middle">Brak okładki</text></svg>`
+        );
+
+      let entries = [];
+      let isFetching = false;
+
+      let currentA = null;
+      let currentB = null;
+      let resolveChoice = null;
+      let compareCount = 0;
+      let compareCancelled = false;
+
+      class CancelledError extends Error {
+        constructor() {
+          super('Porównywanie zostało przerwane.');
+          this.name = 'CancelledError';
+        }
+      }
+
+      initTheme();
+      loadEntries();
+      renderEntries();
+      updateControls();
+
+      themeToggleBtn.addEventListener('click', toggleTheme);
+      addBtn.addEventListener('click', addTitles);
+      fetchCoversBtn.addEventListener('click', fetchAllCovers);
+      clearCoverCacheBtn.addEventListener('click', clearCoverCache);
+      clearListBtn.addEventListener('click', clearList);
+      startBtn.addEventListener('click', startRanking);
+      cancelCompareBtn.addEventListener('click', cancelCompare);
+      compareAgainBtn.addEventListener('click', startRanking);
+      backFromResultBtn.addEventListener('click', showSetup);
+
+      function initTheme() {
+        const saved = localStorage.getItem(THEME_KEY);
+        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const initialTheme = saved || (prefersDark ? 'dark' : 'light');
+        applyTheme(initialTheme);
+      }
+
+      function applyTheme(theme) {
+        if (theme === 'dark') {
+          document.body.classList.add('dark');
+          themeToggleBtn.textContent = '☀️ Jasny motyw';
+        } else {
+          document.body.classList.remove('dark');
+          themeToggleBtn.textContent = '🌙 Ciemny motyw';
+        }
+      }
+
+      function toggleTheme() {
+        const isDark = document.body.classList.contains('dark');
+        const newTheme = isDark ? 'light' : 'dark';
+        localStorage.setItem(THEME_KEY, newTheme);
+        applyTheme(newTheme);
+      }
+
+      entryList.addEventListener('click', (e) => {
+        const removeBtn = e.target.closest('[data-remove-id]');
+        if (!removeBtn) return;
+
+        const id = removeBtn.dataset.removeId;
+        entries = entries.filter((entry) => entry.id !== id);
+
+        saveEntries();
+        renderEntries();
+        updateControls();
+        setStatus('Usunięto tytuł z listy.');
+      });
+
+      compareCards.addEventListener('click', (e) => {
+        if (e.target.closest('a')) return;
+
+        const card = e.target.closest('.card');
+        if (!card || !resolveChoice) return;
+
+        const id = card.dataset.id;
+        const winner = currentA?.id === id ? currentA : currentB;
+
+        if (!winner) return;
+
+        const resolver = resolveChoice;
+        resolveChoice = null;
+        resolver(winner);
+      });
+
+      function uid() {
+        return Date.now().toString(36) + Math.random().toString(16).slice(2, 10);
+      }
+
+      function createEntry(name) {
+        return {
+          id: uid(),
+          name: name.trim(),
+          coverUrl: '',
+          infoUrl: malSearchUrl(name.trim()),
+          status: 'pending',
+          matchedTitle: '',
+          source: ''
+        };
+      }
+
+      function normalizeTitle(value = '') {
+        return String(value)
+          .toLowerCase()
+          .trim()
+          .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+          .replace(/\s+/g, ' ');
+      }
+
+      function getSearchQueries(rawTitle) {
+        const queries = [rawTitle.trim()];
+
+        const cleaned = rawTitle.replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+        if (cleaned && cleaned !== rawTitle.trim() && !queries.includes(cleaned)) {
+          queries.push(cleaned);
+        }
+
+        const splitMatch = rawTitle.split(/[:\-\~|/()\[\]]/)[0]?.trim();
+        if (splitMatch && splitMatch.length >= 3 && !queries.includes(splitMatch)) {
+          queries.push(splitMatch);
+          const cleanedSplit = splitMatch.replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+          if (cleanedSplit && !queries.includes(cleanedSplit)) {
+            queries.push(cleanedSplit);
+          }
+        }
+
+        return queries;
+      }
+
+      function setStatus(text = '') {
+        statusEl.textContent = text;
+      }
+
+      function setError(text = '') {
+        errorBox.hidden = !text;
+        errorBox.classList.toggle('hidden', !text);
+        errorBox.textContent = text;
+      }
+
+      function showSection(el) {
+        el.hidden = false;
+        el.classList.remove('hidden');
+      }
+
+      function hideSection(el) {
+        el.hidden = true;
+        el.classList.add('hidden');
+      }
+
+      function addTitles() {
+        const raw = titlesInput.value.trim();
+
+        if (!raw) {
+          setStatus('Wklej najpierw listę tytułów.');
+          return;
+        }
+
+        const lines = raw
+          .split(/\r?\n/)
+          .flatMap((line) => line.split(';'))
+          .map((line) => line.trim())
+          .filter(Boolean);
+
+        let added = 0;
+
+        for (const name of lines) {
+          const isDuplicate = entries.some(
+            (entry) => normalizeTitle(entry.name) === normalizeTitle(name)
+          );
+
+          if (!isDuplicate) {
+            entries.push(createEntry(name));
+            added += 1;
+          }
+        }
+
+        titlesInput.value = '';
+
+        saveEntries();
+        renderEntries();
+        updateControls();
+
+        if (added > 0) {
+          if (isFetching) {
+            setStatus(`Dodano ${added} tytułów. Trwa już pobieranie okładek.`);
+          } else {
+            setStatus(`Dodano ${added} tytułów. Pobieranie okładek...`);
+            fetchAllCovers();
+          }
+        } else {
+          setStatus('Nie dodano nowych tytułów. Wszystko było już na liście albo lista była pusta.');
+        }
+      }
+
+      async function fetchAllCovers() {
+        if (isFetching) return;
+
+        if (!entries.length) {
+          setStatus('Najpierw dodaj tytuły.');
+          return;
+        }
+
+        const missing = entries.filter((entry) => entry.status !== 'ok');
+
+        if (!missing.length) {
+          setStatus('Wszystkie okładki są już pobrane.');
+          return;
+        }
+
+        isFetching = true;
+        updateControls();
+        setError('');
+        setStatus('Pobieranie okładek...');
+
+        for (const entry of entries) {
+          if (entry.status === 'ok') continue;
+
+          entry.status = 'loading';
+          renderEntries();
+          updateControls();
+
+          try {
+            const result = await getCoverForTitle(entry.name);
+
+            entry.coverUrl = result.coverUrl || '';
+            entry.infoUrl = result.infoUrl || entry.infoUrl || malSearchUrl(entry.name);
+            entry.matchedTitle = result.matchedTitle || '';
+            entry.source = result.source || '';
+            entry.status = 'ok';
+          } catch (err) {
+            console.warn(`Nie udało się pobrać okładki dla: ${entry.name}`, err);
+
+            entry.coverUrl = '';
+            entry.status = 'error';
+            entry.infoUrl = entry.infoUrl || malSearchUrl(entry.name);
+          }
+
+          saveEntries();
+          renderEntries();
+
+          await sleep(700);
+        }
+
+        isFetching = false;
+        updateControls();
+        renderEntries();
+        setStatus('Zakończono pobieranie okładek.');
+      }
+
+      async function getCoverForTitle(title) {
+        const cached = readCoverCache(title);
+
+        if (cached) {
+          return cached;
+        }
+
+        const errors = [];
+
+        // 1. AniList
+        try {
+          const anilistResult = await fetchAnilistCover(title);
+          writeCoverCache(title, anilistResult);
+          return anilistResult;
+        } catch (err) {
+          errors.push('AniList: ' + (err?.message || err));
+        }
+
+        // 2. Kitsu
+        try {
+          await sleep(300);
+          const kitsuResult = await fetchKitsuCover(title);
+          writeCoverCache(title, kitsuResult);
+          return kitsuResult;
+        } catch (err) {
+          errors.push('Kitsu: ' + (err?.message || err));
+        }
+
+        // 3. MyAnimeList (Jikan)
+        try {
+          await sleep(300);
+          const jikanResult = await fetchJikanCover(title);
+          writeCoverCache(title, jikanResult);
+          return jikanResult;
+        } catch (err) {
+          errors.push('MyAnimeList: ' + (err?.message || err));
+        }
+
+        throw new Error(errors.join(' | '));
+      }
+
+      async function fetchAnilistCover(title) {
+        const queries = getSearchQueries(title);
+        let lastError = null;
+
+        for (const q of queries) {
+          try {
+            const query = `
+              query ($search: String) {
+                Media(search: $search, type: ANIME) {
+                  id
+                  siteUrl
+                  title {
+                    romaji
+                    english
+                    native
+                  }
+                  coverImage {
+                    large
+                    medium
+                  }
+                }
+              }
+            `;
+
+            const res = await fetchWithTimeout('https://graphql.anilist.co', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              },
+              body: JSON.stringify({
+                query,
+                variables: { search: q }
+              })
+            });
+
+            if (!res.ok) continue;
+
+            const json = await res.json();
+            const media = json?.data?.Media;
+
+            if (!media) continue;
+
+            const coverUrl = media.coverImage?.large || media.coverImage?.medium || '';
+
+            if (!coverUrl) continue;
+
+            return {
+              coverUrl,
+              infoUrl: media.siteUrl || anilistSearchUrl(title),
+              matchedTitle:
+                media.title?.romaji ||
+                media.title?.english ||
+                media.title?.native ||
+                title,
+              source: 'anilist'
+            };
+          } catch (err) {
+            lastError = err;
+          }
+        }
+
+        throw lastError || new Error('Brak wyników w AniList.');
+      }
+
+      async function fetchKitsuCover(title) {
+        const queries = getSearchQueries(title);
+        let lastError = null;
+
+        for (const q of queries) {
+          try {
+            const params = new URLSearchParams({
+              'filter[text]': q,
+              'page[limit]': '3'
+            });
+
+            const url = `https://kitsu.io/api/edge/anime?${params.toString()}`;
+
+            const res = await fetchWithTimeout(url, {
+              headers: {
+                'Accept': 'application/vnd.api+json'
+              }
+            });
+
+            if (!res.ok) continue;
+
+            const json = await res.json();
+            const list = Array.isArray(json.data) ? json.data : [];
+            if (!list.length) continue;
+
+            const item = list[0];
+            const attrs = item.attributes || {};
+
+            const coverUrl =
+              attrs.posterImage?.original ||
+              attrs.posterImage?.large ||
+              attrs.posterImage?.medium ||
+              attrs.posterImage?.small ||
+              attrs.posterImage?.tiny ||
+              '';
+
+            if (!coverUrl) continue;
+
+            const matchedTitle =
+              attrs.canonicalTitle ||
+              attrs.titles?.en ||
+              attrs.titles?.en_jp ||
+              title;
+
+            const infoUrl = attrs.slug
+              ? `https://kitsu.io/anime/${attrs.slug}`
+              : `https://kitsu.io/anime?text=${encodeURIComponent(title)}`;
+
+            return {
+              coverUrl,
+              infoUrl,
+              matchedTitle,
+              source: 'kitsu'
+            };
+          } catch (err) {
+            lastError = err;
+          }
+        }
+
+        throw lastError || new Error('Brak wyników w Kitsu.');
+      }
+
+      async function fetchJikanCover(title) {
+        const queries = getSearchQueries(title);
+        let lastError = null;
+
+        for (const q of queries) {
+          try {
+            const url = `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(q)}&limit=5`;
+
+            let res = await fetchWithTimeout(url, {
+              headers: { 'Accept': 'application/json' }
+            });
+
+            if (res.status === 429) {
+              await sleep(1200);
+              res = await fetchWithTimeout(url, {
+                headers: { 'Accept': 'application/json' }
+              });
+            }
+
+            if (!res.ok) continue;
+
+            const json = await res.json();
+            const data = Array.isArray(json.data) ? json.data : [];
+            const item = chooseBestJikanResult(data, title);
+
+            if (!item) continue;
+
+            const coverUrl = getJikanImageUrl(item);
+            if (!coverUrl) continue;
+
+            return {
+              coverUrl,
+              infoUrl: item.url || malSearchUrl(title),
+              matchedTitle: item.title || title,
+              source: 'myanimelist'
+            };
+          } catch (err) {
+            lastError = err;
+          }
+        }
+
+        for (const q of queries) {
+          try {
+            const url = `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q)}&limit=5`;
+
+            let res = await fetchWithTimeout(url, {
+              headers: { 'Accept': 'application/json' }
+            });
+
+            if (res.status === 429) {
+              await sleep(1200);
+              res = await fetchWithTimeout(url, {
+                headers: { 'Accept': 'application/json' }
+              });
+            }
+
+            if (!res.ok) continue;
+
+            const json = await res.json();
+            const data = Array.isArray(json.data) ? json.data : [];
+            const item = chooseBestJikanResult(data, title);
+
+            if (!item) continue;
+
+            const coverUrl = getJikanImageUrl(item);
+            if (!coverUrl) continue;
+
+            return {
+              coverUrl,
+              infoUrl: item.url || malSearchUrl(title),
+              matchedTitle: item.title || title,
+              source: 'myanimelist (manga/ln)'
+            };
+          } catch (err) {
+            lastError = err;
+          }
+        }
+
+        throw lastError || new Error('Brak wyników w MyAnimeList (Jikan).');
+      }
+
+      function getJikanImageUrl(item) {
+        return (
+          item.images?.webp?.large_image_url ||
+          item.images?.jpg?.large_image_url ||
+          item.images?.webp?.image_url ||
+          item.images?.jpg?.image_url ||
+          ''
+        );
+      }
+
+      function chooseBestJikanResult(list, query) {
+        if (!list.length) return null;
+
+        const normalizedQuery = normalizeTitle(query);
+
+        const getTitles = (item) => {
+          const titles = [
+            item.title,
+            item.title_english,
+            item.title_romaji,
+            item.title_japanese
+          ];
+
+          if (Array.isArray(item.titles)) {
+            for (const titleObj of item.titles) {
+              if (titleObj && titleObj.title) {
+                titles.push(titleObj.title);
+              }
+            }
+          }
+
+          return titles.filter(Boolean);
+        };
+
+        const exactMatch = list.find((item) =>
+          getTitles(item).some((t) => normalizeTitle(t) === normalizedQuery)
+        );
+        if (exactMatch) return exactMatch;
+
+        const startsWithMatch = list.find((item) =>
+          getTitles(item).some((t) => {
+            const nt = normalizeTitle(t);
+            return nt.startsWith(normalizedQuery) || normalizedQuery.startsWith(nt);
+          })
+        );
+        if (startsWithMatch) return startsWithMatch;
+
+        const includesMatch = list.find((item) =>
+          getTitles(item).some((t) => {
+            const nt = normalizeTitle(t);
+            return nt.includes(normalizedQuery) || normalizedQuery.includes(nt);
+          })
+        );
+        if (includesMatch) return includesMatch;
+
+        return list[0];
+      }
+
+      async function fetchWithTimeout(url, options = {}, timeout = 15000) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+        try {
+          return await fetch(url, {
+            ...options,
+            signal: controller.signal
+          });
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      }
+
+      function coverCacheKey(title) {
+        return COVER_CACHE_PREFIX + normalizeTitle(title);
+      }
+
+      function readCoverCache(title) {
+        try {
+          const raw = localStorage.getItem(coverCacheKey(title));
+          if (!raw) return null;
+
+          const parsed = JSON.parse(raw);
+          if (!parsed || !parsed.coverUrl) return null;
+
+          return parsed;
+        } catch (err) {
+          console.warn('Błąd odczytu cache okładki:', err);
+          return null;
+        }
+      }
+
+      function writeCoverCache(title, data) {
+        try {
+          localStorage.setItem(coverCacheKey(title), JSON.stringify(data));
+        } catch (err) {
+          console.warn('Nie udało się zapisać cache okładki:', err);
+        }
+      }
+
+      function clearCoverCache() {
+        if (!entries.length) {
+          setStatus('Lista jest pusta — nie ma czego czyścić.');
+          return;
+        }
+
+        const keysToRemove = [];
+
+        try {
+          for (let i = 0; i < localStorage.length; i += 1) {
+            const key = localStorage.key(i);
+
+            if (key && key.startsWith(COVER_CACHE_PREFIX)) {
+              keysToRemove.push(key);
+            }
+          }
+
+          for (const key of keysToRemove) {
+            localStorage.removeItem(key);
+          }
+        } catch (err) {
+          console.warn('Nie udało się wyczyścić cache okładek:', err);
+        }
+
+        entries = entries.map((entry) => ({
+          ...entry,
+          coverUrl: '',
+          status: 'pending',
+          matchedTitle: '',
+          source: '',
+          infoUrl: malSearchUrl(entry.name)
+        }));
+
+        saveEntries();
+        renderEntries();
+        updateControls();
+
+        setStatus(`Usunięto cache okładek: ${keysToRemove.length}. Możesz teraz kliknąć „Pobierz okładki”.`);
+      }
+
+      function saveEntries() {
+        try {
+          const serialized = entries.map((entry) => ({
+            ...entry,
+            status: entry.status === 'loading' ? 'pending' : entry.status
+          }));
+
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
+        } catch (err) {
+          console.warn('Nie udało się zapisać listy tytułów:', err);
+        }
+      }
+
+      function loadEntries() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (!raw) return;
+
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) return;
+
+          entries = parsed
+            .filter((item) => item && typeof item.name === 'string' && item.name.trim())
+            .map((item) => ({
+              id: String(item.id || uid()),
+              name: item.name.trim(),
+              coverUrl: typeof item.coverUrl === 'string' ? item.coverUrl : '',
+              infoUrl:
+                typeof item.infoUrl === 'string' && item.infoUrl
+                  ? item.infoUrl
+                  : malSearchUrl(item.name.trim()),
+              status:
+                item.status === 'ok'
+                  ? 'ok'
+                  : item.status === 'error'
+                    ? 'error'
+                    : 'pending',
+              matchedTitle: typeof item.matchedTitle === 'string' ? item.matchedTitle : '',
+              source: typeof item.source === 'string' ? item.source : ''
+            }));
+        } catch (err) {
+          console.warn('Błąd wczytywania listy tytułów:', err);
+          entries = [];
+        }
+      }
+
+      function renderEntries() {
+        entryList.innerHTML = '';
+
+        for (const entry of entries) {
+          const row = document.createElement('div');
+          row.className = 'entry-item';
+
+          row.innerHTML = `
+            <img class="entry-thumb" src="${escapeHtml(entry.coverUrl || PLACEHOLDER_COVER)}" alt="" />
+
+            <div>
+              <div class="entry-title">${escapeHtml(entry.name)}</div>
+              <div class="muted">
+                ${escapeHtml(statusLabel(entry.status))}
+                ${entry.source ? ' • ' + escapeHtml(entry.source) : ''}
+              </div>
+            </div>
+
+            <div class="entry-actions">
+              <a
+                href="${escapeHtml(entry.infoUrl || malSearchUrl(entry.name))}"
+                target="_blank"
+                rel="noopener"
+              >Info</a>
+
+              <button class="danger" data-remove-id="${entry.id}">Usuń</button>
+            </div>
+          `;
+
+          const img = row.querySelector('img');
+
+          img.addEventListener('error', () => {
+            img.src = PLACEHOLDER_COVER;
+          });
+
+          entryList.appendChild(row);
+        }
+      }
+
+      function statusLabel(status) {
+        const labels = {
+          pending: 'Oczekuje na okładkę',
+          loading: 'Pobieranie okładki...',
+          ok: 'OK',
+          error: 'Nie pobrano okładki'
+        };
+
+        return labels[status] || status;
+      }
+
+      function updateControls() {
+        addBtn.disabled = false;
+        fetchCoversBtn.disabled = isFetching || entries.length === 0;
+        clearCoverCacheBtn.disabled = isFetching || entries.length === 0;
+        clearListBtn.disabled = isFetching || entries.length === 0;
+        startBtn.disabled = isFetching || entries.length < 2;
+
+        const missingCovers = entries.filter((entry) => entry.status !== 'ok').length;
+
+        if (!entries.length) {
+          entriesMeta.textContent = 'Lista jest pusta.';
+          return;
+        }
+
+        entriesMeta.textContent =
+          `Liczba tytułów: ${entries.length}` +
+          (missingCovers ? ` • tytuły bez pobranej okładki: ${missingCovers}` : '');
+      }
+
+      function clearList() {
+        if (!entries.length) return;
+
+        if (!confirm('Na pewno chcesz wyczyścić całą listę tytułów?')) return;
+
+        entries = [];
+
+        saveEntries();
+        renderEntries();
+        updateControls();
+        setStatus('Lista została wyczyszczona.');
+      }
+
+      async function startRanking() {
+        if (entries.length < 2) return;
+
+        compareCancelled = false;
+        compareCount = 0;
+
+        setError('');
+        setStatus('');
+
+        hideSection(setup);
+        hideSection(resultView);
+        showSection(compareView);
+
+        try {
+          const ranked = await mergeSort([...entries]);
+
+          renderRanking(ranked);
+
+          hideSection(compareView);
+          showSection(resultView);
+        } catch (err) {
+          if (err && err.name === 'CancelledError') {
+            showSetup();
+            return;
+          }
+
+          console.error(err);
+
+          hideSection(compareView);
+          showSection(setup);
+
+          setError('Błąd podczas porównywania: ' + (err?.message || err));
+        }
+      }
+
+      function cancelCompare() {
+        compareCancelled = true;
+
+        if (resolveChoice) {
+          const resolver = resolveChoice;
+          resolveChoice = null;
+          resolver(null);
+        }
+
+        showSetup();
+      }
+
+      function showSetup() {
+        showSection(setup);
+        hideSection(compareView);
+        hideSection(resultView);
+
+        setStatus('');
+        setError('');
+        updateControls();
+      }
+
+      async function mergeSort(items) {
+        if (items.length <= 1) return items;
+
+        const middle = Math.floor(items.length / 2);
+
+        const left = await mergeSort(items.slice(0, middle));
+        const right = await mergeSort(items.slice(middle));
+
+        return merge(left, right);
+      }
+
+      async function merge(left, right) {
+        const result = [];
+
+        let i = 0;
+        let j = 0;
+
+        while (i < left.length && j < right.length) {
+          if (compareCancelled) {
+            throw new CancelledError();
+          }
+
+          const winner = await askCompare(left[i], right[j]);
+
+          if (!winner) {
+            throw new CancelledError();
+          }
+
+          if (winner.id === left[i].id) {
+            result.push(left[i]);
+            i += 1;
+          } else {
+            result.push(right[j]);
+            j += 1;
+          }
+        }
+
+        return result.concat(left.slice(i)).concat(right.slice(j));
+      }
+
+      function askCompare(a, b) {
+        currentA = a;
+        currentB = b;
+
+        compareCount += 1;
+        compareCounter.textContent = `Porównanie #${compareCount} • Tytułów na liście: ${entries.length}`;
+
+        renderCompareCard(cardA, a);
+        renderCompareCard(cardB, b);
+
+        return new Promise((resolve) => {
+          resolveChoice = resolve;
+        });
+      }
+
+      function renderCompareCard(card, entry) {
+        card.dataset.id = entry.id;
+
+        const matched =
+          entry.matchedTitle &&
+          normalizeTitle(entry.matchedTitle) !== normalizeTitle(entry.name)
+            ? `Dopasowano: ${escapeHtml(entry.matchedTitle)}<br />`
+            : '';
+
+        card.innerHTML = `
+          <img src="${escapeHtml(entry.coverUrl || PLACEHOLDER_COVER)}" alt="" />
+          <h3>${escapeHtml(entry.name)}</h3>
+          <p class="muted">
+            ${matched}
+            <a
+              href="${escapeHtml(entry.infoUrl || malSearchUrl(entry.name))}"
+              target="_blank"
+              rel="noopener"
+            >Info</a>
+          </p>
+        `;
+
+        const img = card.querySelector('img');
+
+        img.addEventListener('error', () => {
+          img.src = PLACEHOLDER_COVER;
+        });
+      }
+
+      function renderRanking(items) {
+        rankList.innerHTML = '';
+
+        items.forEach((entry, index) => {
+          const row = document.createElement('div');
+          row.className = 'ranking-item';
+
+          row.innerHTML = `
+            <div class="rank-number">${index + 1}.</div>
+
+            <img src="${escapeHtml(entry.coverUrl || PLACEHOLDER_COVER)}" alt="" />
+
+            <div>
+              <strong>${escapeHtml(entry.name)}</strong>
+              <div class="muted">
+                <a
+                  href="${escapeHtml(entry.infoUrl || malSearchUrl(entry.name))}"
+                  target="_blank"
+                  rel="noopener"
+                >Info</a>
+              </div>
+            </div>
+          `;
+
+          const img = row.querySelector('img');
+
+          img.addEventListener('error', () => {
+            img.src = PLACEHOLDER_COVER;
+          });
+
+          rankList.appendChild(row);
+        });
+      }
+
+      function malSearchUrl(title) {
+        return `https://myanimelist.net/search/all?q=${encodeURIComponent(title)}`;
+      }
+
+      function anilistSearchUrl(title) {
+        return `https://anilist.co/search/anime?search=${encodeURIComponent(title)}`;
+      }
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      function escapeHtml(value = '') {
+        return String(value)
+          .replaceAll('&', '&amp;')
+          .replaceAll('<', '&lt;')
+          .replaceAll('>', '&gt;')
+          .replaceAll('"', '&quot;')
+          .replaceAll("'", '&#39;');
+      }
+    })();
+  </script>
+</body>
+</html>
