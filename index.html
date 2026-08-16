@@ -111,6 +111,15 @@
       color: #fff;
     }
 
+    #langToggleBtn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-weight: bold;
+      padding: 9px 12px;
+    }
+
     .muted {
       color: var(--muted);
       font-size: 14px;
@@ -268,7 +277,7 @@
 
 <body>
   <div class="header-container">
-    <button id="langToggleBtn" class="secondary" type="button">🇵🇱 Polski</button>
+    <button id="langToggleBtn" class="secondary" type="button" title="Zmień język / Change language"></button>
     <button id="themeToggleBtn" class="secondary" type="button">🌙 Dark Theme</button>
   </div>
 
@@ -350,10 +359,31 @@ Bocchi the Rock!"
 
   <script>
     (() => {
+      const FLAG_PL = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" width="20" height="14" style="border-radius: 2px; vertical-align: middle; box-shadow: 0 0 1px rgba(0,0,0,0.6); display: inline-block;">
+          <path fill="#ffffff" d="M0 0h640v240H0z"/>
+          <path fill="#dc143c" d="M0 240h640v240H0z"/>
+        </svg>
+      `;
+
+      const FLAG_GB = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 30" width="20" height="14" style="border-radius: 2px; vertical-align: middle; box-shadow: 0 0 1px rgba(0,0,0,0.6); display: inline-block;">
+          <clipPath id="uk-clip-a"><path d="M0 0v30h60V0z"/></clipPath>
+          <clipPath id="uk-clip-b"><path d="M30 15h30v15zv15H0zH0V0zV0h30z"/></clipPath>
+          <g clip-path="url(#uk-clip-a)">
+            <path d="M0 0v30h60V0z" fill="#012169"/>
+            <path d="M0 0l60 30m0-30L0 30" stroke="#fff" stroke-width="6"/>
+            <path d="M0 0l60 30m0-30L0 30" clip-path="url(#uk-clip-b)" stroke="#C8102E" stroke-width="4"/>
+            <path d="M30 0v30M0 15h60" stroke="#fff" stroke-width="10"/>
+            <path d="M30 0v30M0 15h60" stroke="#C8102E" stroke-width="6"/>
+          </g>
+        </svg>
+      `;
+
       const translations = {
         en: {
           docTitle: "Anime Ranking",
-          langBtn: "🇵🇱 Polski",
+          langBtnHtml: `${FLAG_PL} PL`,
           themeDark: "🌙 Dark Theme",
           themeLight: "☀️ Light Theme",
           mainTitle: "Anime Ranking",
@@ -410,7 +440,7 @@ Bocchi the Rock!"
         },
         pl: {
           docTitle: "Ranking anime",
-          langBtn: "🇬🇧 English",
+          langBtnHtml: `${FLAG_GB} GB`,
           themeDark: "🌙 Ciemny motyw",
           themeLight: "☀️ Jasny motyw",
           mainTitle: "Ranking anime",
@@ -565,7 +595,7 @@ Bocchi the Rock!"
         document.documentElement.lang = lang;
         document.title = t.docTitle;
 
-        langToggleBtn.textContent = t.langBtn;
+        langToggleBtn.innerHTML = t.langBtnHtml;
         document.getElementById('t_mainTitle').textContent = t.mainTitle;
         document.getElementById('t_mainSubtitle').textContent = t.mainSubtitle;
         document.getElementById('t_inputLabel').textContent = t.inputLabel;
