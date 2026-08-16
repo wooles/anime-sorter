@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="pl">
+<html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Ranking anime</title>
+  <title>Anime Ranking</title>
 
   <!-- Biblioteka do generowania pliku graficznego -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -57,6 +57,7 @@
       display: flex;
       justify-content: flex-end;
       align-items: center;
+      gap: 10px;
       margin-bottom: 12px;
     }
 
@@ -267,18 +268,19 @@
 
 <body>
   <div class="header-container">
-    <button id="themeToggleBtn" class="secondary" type="button">🌙 Ciemny motyw</button>
+    <button id="langToggleBtn" class="secondary" type="button">🇵🇱 Polski</button>
+    <button id="themeToggleBtn" class="secondary" type="button">🌙 Dark Theme</button>
   </div>
 
   <section id="setup">
-    <h1>Ranking anime</h1>
+    <h1 id="t_mainTitle">Anime Ranking</h1>
 
-    <p>
-      Wklej listę tytułów, okładki pobiorą się automatycznie.
+    <p id="t_mainSubtitle">
+      Paste a list of titles, covers and scores will be fetched automatically.
     </p>
 
-    <label for="titlesInput">
-      Tytuły anime — jeden tytuł na linię:
+    <label for="titlesInput" id="t_inputLabel">
+      Anime titles — one title per line:
     </label>
 
     <textarea
@@ -291,11 +293,11 @@ Bocchi the Rock!"
     ></textarea>
 
     <div class="controls">
-      <button id="addBtn">Dodaj tytuły</button>
-      <button id="fetchCoversBtn" class="secondary">Pobierz okładki</button>
-      <button id="clearCoverCacheBtn" class="secondary">Wyczyść cache okładek</button>
-      <button id="clearListBtn" class="danger">Wyczyść listę</button>
-      <button id="startBtn" disabled>Rozpocznij porównywanie</button>
+      <button id="addBtn">Add titles</button>
+      <button id="fetchCoversBtn" class="secondary">Fetch covers</button>
+      <button id="clearCoverCacheBtn" class="secondary">Clear cover cache</button>
+      <button id="clearListBtn" class="danger">Clear list</button>
+      <button id="startBtn" disabled>Start sorting</button>
     </div>
 
     <div id="status" class="status" aria-live="polite"></div>
@@ -306,7 +308,7 @@ Bocchi the Rock!"
   </section>
 
   <section id="compareView" class="hidden">
-    <h2>Które anime jest lepsze?</h2>
+    <h2 id="t_compareTitle">Which anime is better?</h2>
     
     <div class="progress-container">
       <div id="progressBar" class="progress-bar"></div>
@@ -314,12 +316,12 @@ Bocchi the Rock!"
     <div id="compareCounter" class="muted"></div>
 
     <div class="controls">
-      <button id="cancelCompareBtn" class="danger">Przerwij i wróć do listy</button>
+      <button id="cancelCompareBtn" class="danger">Cancel and return to list</button>
     </div>
 
     <div class="tie-container">
       <button id="tieBtn" class="secondary" style="font-size: 16px; font-weight: bold; padding: 12px 24px;">
-        🤝 Remis (oba tak samo dobre)
+        🤝 Tie (both are equally good)
       </button>
     </div>
 
@@ -332,22 +334,139 @@ Bocchi the Rock!"
 
   <section id="resultView" class="hidden">
     <div class="controls">
-      <button id="exportImageBtn" class="secondary">📸 Pobierz ranking jako obraz (PNG)</button>
-      <button id="uploadLitterboxBtn" class="secondary">☁️ Wrzuć na Litterbox (link)</button>
-      <button id="compareAgainBtn">Porównaj jeszcze raz</button>
-      <button id="backFromResultBtn" class="secondary">Wróć do listy</button>
+      <button id="exportImageBtn" class="secondary">📸 Download ranking as image (PNG)</button>
+      <button id="uploadLitterboxBtn" class="secondary">☁️ Upload to Litterbox (link)</button>
+      <button id="compareAgainBtn">Sort again</button>
+      <button id="backFromResultBtn" class="secondary">Return to list</button>
     </div>
 
     <div id="uploadResult"></div>
 
     <div id="rankingExportArea">
-      <h2>Twój ranking</h2>
+      <h2 id="t_resultTitle">Your Ranking</h2>
       <div id="rankList"></div>
     </div>
   </section>
 
   <script>
     (() => {
+      const translations = {
+        en: {
+          docTitle: "Anime Ranking",
+          langBtn: "🇵🇱 Polski",
+          themeDark: "🌙 Dark Theme",
+          themeLight: "☀️ Light Theme",
+          mainTitle: "Anime Ranking",
+          mainSubtitle: "Paste a list of titles, covers and scores will be fetched automatically.",
+          inputLabel: "Anime titles — one title per line:",
+          addBtn: "Add titles",
+          fetchCoversBtn: "Fetch covers",
+          clearCoverCacheBtn: "Clear cover cache",
+          clearListBtn: "Clear list",
+          startBtn: "Start sorting",
+          compareTitle: "Which anime is better?",
+          cancelCompareBtn: "Cancel and return to list",
+          tieBtn: "🤝 Tie (both are equally good)",
+          exportImageBtn: "📸 Download ranking as image (PNG)",
+          uploadLitterboxBtn: "☁️ Upload to Litterbox (link)",
+          compareAgainBtn: "Sort again",
+          backFromResultBtn: "Return to list",
+          resultTitle: "Your Ranking",
+          infoLink: "Info",
+          removeBtn: "Remove",
+          emptyList: "List is empty.",
+          titleCount: "Total titles: ",
+          missingCovers: " • titles without cover: ",
+          itemPending: "Awaiting cover",
+          itemLoading: "Fetching cover and scores...",
+          itemOk: "OK",
+          itemError: "Failed to fetch cover",
+          pastePrompt: "Please paste a list of titles first.",
+          addedFetching: (n) => `Added ${n} titles. Fetching covers and scores...`,
+          addedFetchingRunning: (n) => `Added ${n} titles. Cover fetch already running.`,
+          noNewTitles: "No new titles added. All were duplicates or input was empty.",
+          allCoversFetched: "All covers and scores are already fetched.",
+          fetchStarted: "Fetching covers and scores...",
+          fetchFinished: "Finished fetching covers and scores.",
+          cacheCleared: (n) => `Cleared cover cache: ${n}. You can now click "Fetch covers".`,
+          emptyCacheMsg: "List is empty — nothing to clear.",
+          clearConfirm: "Are you sure you want to clear the entire list?",
+          listCleared: "List has been cleared.",
+          titleRemoved: "Removed title from list.",
+          matched: "Matched: ",
+          progressText: (count, percent, total) => `Comparison #${count} • Progress: ~${percent}% • Titles on list: ${total}`,
+          placeholderNoCover: "No cover",
+          preparingCovers: "⏳ Preparing covers...",
+          generatingImage: "⏳ Generating image file...",
+          renderingCanvas: "⏳ Rendering image...",
+          uploadingLitterbox: "⏳ Uploading to Litterbox...",
+          uploadSuccessTitle: "Image link (valid for 72h):",
+          copyLinkBtn: "Copy link",
+          copiedAlert: "Link copied to clipboard!",
+          copyPrompt: "Copy link below:",
+          exportError: "Failed to export image: ",
+          uploadError: "Failed to upload image to Litterbox: ",
+          libError: "Error: Image generation library failed to load. Check your internet connection."
+        },
+        pl: {
+          docTitle: "Ranking anime",
+          langBtn: "🇬🇧 English",
+          themeDark: "🌙 Ciemny motyw",
+          themeLight: "☀️ Jasny motyw",
+          mainTitle: "Ranking anime",
+          mainSubtitle: "Wklej listę tytułów, okładki pobiorą się automatycznie.",
+          inputLabel: "Tytuły anime — jeden tytuł na linię:",
+          addBtn: "Dodaj tytuły",
+          fetchCoversBtn: "Pobierz okładki",
+          clearCoverCacheBtn: "Wyczyść cache okładek",
+          clearListBtn: "Wyczyść listę",
+          startBtn: "Rozpocznij porównywanie",
+          compareTitle: "Które anime jest lepsze?",
+          cancelCompareBtn: "Przerwij i wróć do listy",
+          tieBtn: "🤝 Remis (oba tak samo dobre)",
+          exportImageBtn: "📸 Pobierz ranking jako obraz (PNG)",
+          uploadLitterboxBtn: "☁️ Wrzuć na Litterbox (link)",
+          compareAgainBtn: "Porównaj jeszcze raz",
+          backFromResultBtn: "Wróć do listy",
+          resultTitle: "Twój ranking",
+          infoLink: "Info",
+          removeBtn: "Usuń",
+          emptyList: "Lista jest pusta.",
+          titleCount: "Liczba tytułów: ",
+          missingCovers: " • tytuły bez pobranej okładki: ",
+          itemPending: "Oczekuje na okładkę",
+          itemLoading: "Pobieranie okładki i ocen...",
+          itemOk: "OK",
+          itemError: "Nie pobrano okładki",
+          pastePrompt: "Wklej najpierw listę tytułów.",
+          addedFetching: (n) => `Dodano ${n} tytułów. Pobieranie okładek i ocen...`,
+          addedFetchingRunning: (n) => `Dodano ${n} tytułów. Trwa już pobieranie okładek.`,
+          noNewTitles: "Nie dodano nowych tytułów. Wszystko było już na liście albo lista była pusta.",
+          allCoversFetched: "Wszystkie okładki i oceny są już pobrane.",
+          fetchStarted: "Pobieranie okładek i ocen...",
+          fetchFinished: "Zakończono pobieranie okładek i ocen.",
+          cacheCleared: (n) => `Usunięto cache okładek: ${n}. Możesz teraz kliknąć „Pobierz okładki”.`,
+          emptyCacheMsg: "Lista jest pusta — nie ma czego czyścić.",
+          clearConfirm: "Na pewno chcesz wyczyścić całą listę tytułów?",
+          listCleared: "Lista została wyczyszczona.",
+          titleRemoved: "Usunięto tytuł z listy.",
+          matched: "Dopasowano: ",
+          progressText: (count, percent, total) => `Porównanie #${count} • Postęp: ~${percent}% • Tytułów na liście: ${total}`,
+          placeholderNoCover: "Brak okładki",
+          preparingCovers: "⏳ Przygotowywanie okładek...",
+          generatingImage: "⏳ Generowanie pliku graficznego...",
+          renderingCanvas: "⏳ Renderowanie obrazu...",
+          uploadingLitterbox: "⏳ Wysyłanie na Litterbox...",
+          uploadSuccessTitle: "Link do obrazu (ważny 72h):",
+          copyLinkBtn: "Kopiuj link",
+          copiedAlert: "Skopiowano link do schowka!",
+          copyPrompt: "Skopiuj link poniżej:",
+          exportError: "Nie udało się wyeksportować obrazu: ",
+          uploadError: "Nie udało się wysłać obrazu na Litterbox: ",
+          libError: "Błąd: Biblioteka do generowania obrazów nie została załadowana. Sprawdź połączenie z internetem."
+        }
+      };
+
       const titlesInput = document.getElementById('titlesInput');
       const addBtn = document.getElementById('addBtn');
       const fetchCoversBtn = document.getElementById('fetchCoversBtn');
@@ -355,6 +474,7 @@ Bocchi the Rock!"
       const clearListBtn = document.getElementById('clearListBtn');
       const startBtn = document.getElementById('startBtn');
       const themeToggleBtn = document.getElementById('themeToggleBtn');
+      const langToggleBtn = document.getElementById('langToggleBtn');
 
       const statusEl = document.getElementById('status');
       const errorBox = document.getElementById('errorBox');
@@ -383,13 +503,9 @@ Bocchi the Rock!"
       const STORAGE_KEY = 'manual-anime-sorter:entries:v4';
       const COVER_CACHE_PREFIX = 'manual-anime-cover:v4:';
       const THEME_KEY = 'manual-anime-sorter:theme:v1';
+      const LANG_KEY = 'manual-anime-sorter:lang:v1';
 
-      const PLACEHOLDER_COVER =
-        'data:image/svg+xml;utf8,' +
-        encodeURIComponent(
-          `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450"><rect width="100%" height="100%" fill="#888888"></rect><text x="50%" y="50%" font-family="Arial, sans-serif" font-size="22" fill="#ffffff" text-anchor="middle">Brak okładki</text></svg>`
-        );
-
+      let currentLang = 'en';
       let entries = [];
       let isFetching = false;
 
@@ -398,19 +514,32 @@ Bocchi the Rock!"
       let resolveChoice = null;
       let compareCount = 0;
       let compareCancelled = false;
+      let lastRankedClusters = null;
 
       class CancelledError extends Error {
         constructor() {
-          super('Porównywanie zostało przerwane.');
+          super('Comparison cancelled.');
           this.name = 'CancelledError';
         }
       }
 
+      function getPlaceholderCover() {
+        const text = translations[currentLang].placeholderNoCover;
+        return (
+          'data:image/svg+xml;utf8,' +
+          encodeURIComponent(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="450"><rect width="100%" height="100%" fill="#888888"></rect><text x="50%" y="50%" font-family="Arial, sans-serif" font-size="22" fill="#ffffff" text-anchor="middle">${text}</text></svg>`
+          )
+        );
+      }
+
+      initLanguage();
       initTheme();
       loadEntries();
       renderEntries();
       updateControls();
 
+      langToggleBtn.addEventListener('click', toggleLanguage);
       themeToggleBtn.addEventListener('click', toggleTheme);
       addBtn.addEventListener('click', addTitles);
       fetchCoversBtn.addEventListener('click', fetchAllCovers);
@@ -424,6 +553,55 @@ Bocchi the Rock!"
       compareAgainBtn.addEventListener('click', startRanking);
       backFromResultBtn.addEventListener('click', showSetup);
 
+      function initLanguage() {
+        const saved = localStorage.getItem(LANG_KEY);
+        currentLang = saved === 'pl' ? 'pl' : 'en';
+        applyLanguage(currentLang);
+      }
+
+      function applyLanguage(lang) {
+        currentLang = lang;
+        const t = translations[lang];
+        document.documentElement.lang = lang;
+        document.title = t.docTitle;
+
+        langToggleBtn.textContent = t.langBtn;
+        document.getElementById('t_mainTitle').textContent = t.mainTitle;
+        document.getElementById('t_mainSubtitle').textContent = t.mainSubtitle;
+        document.getElementById('t_inputLabel').textContent = t.inputLabel;
+        addBtn.textContent = t.addBtn;
+        fetchCoversBtn.textContent = t.fetchCoversBtn;
+        clearCoverCacheBtn.textContent = t.clearCoverCacheBtn;
+        clearListBtn.textContent = t.clearListBtn;
+        startBtn.textContent = t.startBtn;
+
+        document.getElementById('t_compareTitle').textContent = t.compareTitle;
+        cancelCompareBtn.textContent = t.cancelCompareBtn;
+        tieBtn.textContent = t.tieBtn;
+
+        exportImageBtn.textContent = t.exportImageBtn;
+        uploadLitterboxBtn.textContent = t.uploadLitterboxBtn;
+        compareAgainBtn.textContent = t.compareAgainBtn;
+        backFromResultBtn.textContent = t.backFromResultBtn;
+        document.getElementById('t_resultTitle').textContent = t.resultTitle;
+
+        const isDark = document.body.classList.contains('dark');
+        themeToggleBtn.textContent = isDark ? t.themeLight : t.themeDark;
+
+        updateControls();
+        renderEntries();
+
+        if (lastRankedClusters && !resultView.classList.contains('hidden')) {
+          renderRanking(lastRankedClusters);
+        }
+      }
+
+      function toggleLanguage() {
+        const newLang = currentLang === 'en' ? 'pl' : 'en';
+        localStorage.setItem(LANG_KEY, newLang);
+        applyLanguage(newLang);
+      }
+
       function initTheme() {
         const saved = localStorage.getItem(THEME_KEY);
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -432,12 +610,13 @@ Bocchi the Rock!"
       }
 
       function applyTheme(theme) {
+        const t = translations[currentLang];
         if (theme === 'dark') {
           document.body.classList.add('dark');
-          themeToggleBtn.textContent = '☀️ Jasny motyw';
+          themeToggleBtn.textContent = t.themeLight;
         } else {
           document.body.classList.remove('dark');
-          themeToggleBtn.textContent = '🌙 Ciemny motyw';
+          themeToggleBtn.textContent = t.themeDark;
         }
       }
 
@@ -525,20 +704,21 @@ Bocchi the Rock!"
       }
 
       async function exportRankingToImage() {
+        const t = translations[currentLang];
         if (typeof html2canvas === 'undefined') {
-          alert('Błąd: Biblioteka do generowania obrazów nie została załadowana. Sprawdź połączenie z internetem.');
+          alert(t.libError);
           return;
         }
 
         const originalText = exportImageBtn.textContent;
         exportImageBtn.disabled = true;
-        exportImageBtn.textContent = '⏳ Przygotowywanie okładek...';
+        exportImageBtn.textContent = t.preparingCovers;
 
         let imgData = null;
 
         try {
           imgData = await prepareImagesForCanvas();
-          exportImageBtn.textContent = '⏳ Generowanie pliku graficznego...';
+          exportImageBtn.textContent = t.generatingImage;
 
           const isDark = document.body.classList.contains('dark');
           const bgColor = isDark ? '#121214' : '#f7f7f7';
@@ -556,8 +736,8 @@ Bocchi the Rock!"
           link.href = canvas.toDataURL('image/png');
           link.click();
         } catch (err) {
-          console.error('Błąd eksportu grafiki:', err);
-          alert('Nie udało się wyeksportować obrazu: ' + (err?.message || err));
+          console.error('Export error:', err);
+          alert(t.exportError + (err?.message || err));
         } finally {
           if (imgData) {
             imgData.imgElements.forEach((img, index) => {
@@ -570,21 +750,22 @@ Bocchi the Rock!"
       }
 
       async function uploadRankingToLitterbox() {
+        const t = translations[currentLang];
         if (typeof html2canvas === 'undefined') {
-          alert('Błąd: Biblioteka do generowania obrazów nie została załadowana. Sprawdź połączenie z internetem.');
+          alert(t.libError);
           return;
         }
 
         const originalText = uploadLitterboxBtn.textContent;
         uploadLitterboxBtn.disabled = true;
-        uploadLitterboxBtn.textContent = '⏳ Przygotowywanie okładek...';
+        uploadLitterboxBtn.textContent = t.preparingCovers;
         uploadResult.innerHTML = '';
 
         let imgData = null;
 
         try {
           imgData = await prepareImagesForCanvas();
-          uploadLitterboxBtn.textContent = '⏳ Renderowanie obrazu...';
+          uploadLitterboxBtn.textContent = t.renderingCanvas;
 
           const isDark = document.body.classList.contains('dark');
           const bgColor = isDark ? '#121214' : '#f7f7f7';
@@ -597,10 +778,10 @@ Bocchi the Rock!"
             logging: false
           });
 
-          uploadLitterboxBtn.textContent = '⏳ Wysyłanie na Litterbox...';
+          uploadLitterboxBtn.textContent = t.uploadingLitterbox;
 
           const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
-          if (!blob) throw new Error('Nie udało się utworzyć pliku graficznego.');
+          if (!blob) throw new Error('Failed to create image blob.');
 
           const formData = new FormData();
           formData.append('reqtype', 'fileupload');
@@ -626,13 +807,13 @@ Bocchi the Rock!"
           }
 
           if (!response || !response.ok) {
-            throw new Error(`Błąd serwera Litterbox (${response ? response.status : 'brak odpowiedzi'}).`);
+            throw new Error(`Litterbox server error (${response ? response.status : 'no response'}).`);
           }
 
           const fileUrl = (await response.text()).trim();
 
           if (!fileUrl.startsWith('http')) {
-            throw new Error('Litterbox zwrócił odpowiedź: ' + fileUrl);
+            throw new Error('Litterbox response: ' + fileUrl);
           }
 
           try {
@@ -642,24 +823,24 @@ Bocchi the Rock!"
           uploadResult.innerHTML = `
             <div style="margin: 12px 0; padding: 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
               <div>
-                <strong>Link do obrazu (ważny 72h):</strong><br />
+                <strong>${t.uploadSuccessTitle}</strong><br />
                 <a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener">${escapeHtml(fileUrl)}</a>
               </div>
-              <button type="button" class="secondary" id="copyUrlBtn">Kopiuj link</button>
+              <button type="button" class="secondary" id="copyUrlBtn">${t.copyLinkBtn}</button>
             </div>
           `;
 
           document.getElementById('copyUrlBtn')?.addEventListener('click', async () => {
             try {
               await navigator.clipboard.writeText(fileUrl);
-              alert('Skopiowano link do schowka!');
+              alert(t.copiedAlert);
             } catch (e) {
-              prompt('Skopiuj link poniżej:', fileUrl);
+              prompt(t.copyPrompt, fileUrl);
             }
           });
         } catch (err) {
-          console.error('Błąd uploadu na Litterbox:', err);
-          alert('Nie udało się wysłać obrazu na Litterbox: ' + (err?.message || err));
+          console.error('Litterbox upload error:', err);
+          alert(t.uploadError + (err?.message || err));
         } finally {
           if (imgData) {
             imgData.imgElements.forEach((img, index) => {
@@ -681,7 +862,7 @@ Bocchi the Rock!"
         saveEntries();
         renderEntries();
         updateControls();
-        setStatus('Usunięto tytuł z listy.');
+        setStatus(translations[currentLang].titleRemoved);
       });
 
       compareCards.addEventListener('click', (e) => {
@@ -789,10 +970,11 @@ Bocchi the Rock!"
       }
 
       function addTitles() {
+        const t = translations[currentLang];
         const raw = titlesInput.value.trim();
 
         if (!raw) {
-          setStatus('Wklej najpierw listę tytułów.');
+          setStatus(t.pastePrompt);
           return;
         }
 
@@ -823,35 +1005,36 @@ Bocchi the Rock!"
 
         if (added > 0) {
           if (isFetching) {
-            setStatus(`Dodano ${added} tytułów. Trwa już pobieranie okładek.`);
+            setStatus(t.addedFetchingRunning(added));
           } else {
-            setStatus(`Dodano ${added} tytułów. Pobieranie okładek i ocen...`);
+            setStatus(t.addedFetching(added));
             fetchAllCovers();
           }
         } else {
-          setStatus('Nie dodano nowych tytułów. Wszystko było już na liście albo lista była pusta.');
+          setStatus(t.noNewTitles);
         }
       }
 
       async function fetchAllCovers() {
+        const t = translations[currentLang];
         if (isFetching) return;
 
         if (!entries.length) {
-          setStatus('Najpierw dodaj tytuły.');
+          setStatus(t.pastePrompt);
           return;
         }
 
         const missing = entries.filter((entry) => entry.status !== 'ok');
 
         if (!missing.length) {
-          setStatus('Wszystkie okładki i oceny są już pobrane.');
+          setStatus(t.allCoversFetched);
           return;
         }
 
         isFetching = true;
         updateControls();
         setError('');
-        setStatus('Pobieranie okładek i ocen...');
+        setStatus(t.fetchStarted);
 
         for (const entry of entries) {
           if (entry.status === 'ok') continue;
@@ -871,7 +1054,7 @@ Bocchi the Rock!"
             entry.scoreSource = result.scoreSource || '';
             entry.status = 'ok';
           } catch (err) {
-            console.warn(`Nie udało się pobrać danych dla: ${entry.name}`, err);
+            console.warn(`Failed to fetch cover: ${entry.name}`, err);
 
             entry.coverUrl = '';
             entry.status = 'error';
@@ -887,7 +1070,7 @@ Bocchi the Rock!"
         isFetching = false;
         updateControls();
         renderEntries();
-        setStatus('Zakończono pobieranie okładek i ocen.');
+        setStatus(t.fetchFinished);
       }
 
       async function getCoverForTitle(title) {
@@ -905,7 +1088,6 @@ Bocchi the Rock!"
         let scoreSource = '';
         const errors = [];
 
-        // 1. AniList (Okładka + Ocena)
         try {
           const anilistResult = await fetchAnilistData(title);
           if (anilistResult.coverUrl) {
@@ -922,7 +1104,6 @@ Bocchi the Rock!"
           errors.push('AniList: ' + (err?.message || err));
         }
 
-        // 2. Kitsu (Okładka jeśli brak + Ocena jako fallback)
         if (!coverUrl || !score) {
           try {
             await sleep(250);
@@ -942,7 +1123,6 @@ Bocchi the Rock!"
           }
         }
 
-        // 3. MyAnimeList (Jikan) - jako fallback dla samej okładki
         if (!coverUrl) {
           try {
             await sleep(350);
@@ -1039,7 +1219,7 @@ Bocchi the Rock!"
           }
         }
 
-        throw lastError || new Error('Brak wyników w AniList.');
+        throw lastError || new Error('No results on AniList.');
       }
 
       async function fetchKitsuData(title) {
@@ -1156,7 +1336,7 @@ Bocchi the Rock!"
           }
         }
 
-        throw lastError || new Error('Brak wyników w Kitsu.');
+        throw lastError || new Error('No results on Kitsu.');
       }
 
       async function fetchJikanWithRetry(url, retries = 2) {
@@ -1213,7 +1393,7 @@ Bocchi the Rock!"
         }
 
         if (!bestItem) {
-          throw new Error('Brak wyników w MyAnimeList.');
+          throw new Error('No results on MyAnimeList.');
         }
 
         const coverUrl = getJikanImageUrl(bestItem);
@@ -1312,7 +1492,7 @@ Bocchi the Rock!"
 
           return parsed;
         } catch (err) {
-          console.warn('Błąd odczytu cache okładki:', err);
+          console.warn('Error reading cover cache:', err);
           return null;
         }
       }
@@ -1321,13 +1501,14 @@ Bocchi the Rock!"
         try {
           localStorage.setItem(coverCacheKey(title), JSON.stringify(data));
         } catch (err) {
-          console.warn('Nie udało się zapisać cache okładki:', err);
+          console.warn('Error saving cover cache:', err);
         }
       }
 
       function clearCoverCache() {
+        const t = translations[currentLang];
         if (!entries.length) {
-          setStatus('Lista jest pusta — nie ma czego czyścić.');
+          setStatus(t.emptyCacheMsg);
           return;
         }
 
@@ -1346,7 +1527,7 @@ Bocchi the Rock!"
             localStorage.removeItem(key);
           }
         } catch (err) {
-          console.warn('Nie udało się wyczyścić cache okładek:', err);
+          console.warn('Error clearing cover cache:', err);
         }
 
         entries = entries.map((entry) => ({
@@ -1364,7 +1545,7 @@ Bocchi the Rock!"
         renderEntries();
         updateControls();
 
-        setStatus(`Usunięto cache okładek: ${keysToRemove.length}. Możesz teraz kliknąć „Pobierz okładki”.`);
+        setStatus(t.cacheCleared(keysToRemove.length));
       }
 
       function saveEntries() {
@@ -1376,7 +1557,7 @@ Bocchi the Rock!"
 
           localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
         } catch (err) {
-          console.warn('Nie udało się zapisać listy tytułów:', err);
+          console.warn('Error saving title list:', err);
         }
       }
 
@@ -1410,12 +1591,13 @@ Bocchi the Rock!"
               scoreSource: typeof item.scoreSource === 'string' ? item.scoreSource : ''
             }));
         } catch (err) {
-          console.warn('Błąd wczytywania listy tytułów:', err);
+          console.warn('Error loading title list:', err);
           entries = [];
         }
       }
 
       function renderEntries() {
+        const t = translations[currentLang];
         entryList.innerHTML = '';
 
         for (const entry of entries) {
@@ -1423,7 +1605,7 @@ Bocchi the Rock!"
           row.className = 'entry-item';
 
           row.innerHTML = `
-            <img class="entry-thumb" src="${escapeHtml(entry.coverUrl || PLACEHOLDER_COVER)}" alt="" />
+            <img class="entry-thumb" src="${escapeHtml(entry.coverUrl || getPlaceholderCover())}" alt="" />
 
             <div>
               <div class="entry-title">${escapeHtml(entry.name)}</div>
@@ -1438,16 +1620,16 @@ Bocchi the Rock!"
                 href="${escapeHtml(entry.infoUrl || malSearchUrl(entry.name))}"
                 target="_blank"
                 rel="noopener"
-              >Info</a>
+              >${escapeHtml(t.infoLink)}</a>
 
-              <button class="danger" data-remove-id="${entry.id}">Usuń</button>
+              <button class="danger" data-remove-id="${entry.id}">${escapeHtml(t.removeBtn)}</button>
             </div>
           `;
 
           const img = row.querySelector('img');
 
           img.addEventListener('error', () => {
-            img.src = PLACEHOLDER_COVER;
+            img.src = getPlaceholderCover();
           });
 
           entryList.appendChild(row);
@@ -1455,17 +1637,19 @@ Bocchi the Rock!"
       }
 
       function statusLabel(status) {
+        const t = translations[currentLang];
         const labels = {
-          pending: 'Oczekuje na okładkę',
-          loading: 'Pobieranie okładki i ocen...',
-          ok: 'OK',
-          error: 'Nie pobrano okładki'
+          pending: t.itemPending,
+          loading: t.itemLoading,
+          ok: t.itemOk,
+          error: t.itemError
         };
 
         return labels[status] || status;
       }
 
       function updateControls() {
+        const t = translations[currentLang];
         addBtn.disabled = false;
         fetchCoversBtn.disabled = isFetching || entries.length === 0;
         clearCoverCacheBtn.disabled = isFetching || entries.length === 0;
@@ -1475,26 +1659,27 @@ Bocchi the Rock!"
         const missingCovers = entries.filter((entry) => entry.status !== 'ok').length;
 
         if (!entries.length) {
-          entriesMeta.textContent = 'Lista jest pusta.';
+          entriesMeta.textContent = t.emptyList;
           return;
         }
 
         entriesMeta.textContent =
-          `Liczba tytułów: ${entries.length}` +
-          (missingCovers ? ` • tytuły bez pobranej okładki: ${missingCovers}` : '');
+          `${t.titleCount}${entries.length}` +
+          (missingCovers ? `${t.missingCovers}${missingCovers}` : '');
       }
 
       function clearList() {
+        const t = translations[currentLang];
         if (!entries.length) return;
 
-        if (!confirm('Na pewno chcesz wyczyścić całą listę tytułów?')) return;
+        if (!confirm(t.clearConfirm)) return;
 
         entries = [];
 
         saveEntries();
         renderEntries();
         updateControls();
-        setStatus('Lista została wyczyszczona.');
+        setStatus(t.listCleared);
       }
 
       async function startRanking() {
@@ -1515,6 +1700,7 @@ Bocchi the Rock!"
           const initialClusters = entries.map((entry) => [entry]);
           const rankedClusters = await mergeSort(initialClusters);
 
+          lastRankedClusters = rankedClusters;
           progressBar.style.width = '100%';
           renderRanking(rankedClusters);
 
@@ -1531,7 +1717,7 @@ Bocchi the Rock!"
           hideSection(compareView);
           showSection(setup);
 
-          setError('Błąd podczas porównywania: ' + (err?.message || err));
+          setError('Error during comparison: ' + (err?.message || err));
         }
       }
 
@@ -1602,6 +1788,7 @@ Bocchi the Rock!"
       }
 
       function askCompare(a, b) {
+        const t = translations[currentLang];
         currentA = a;
         currentB = b;
 
@@ -1611,7 +1798,7 @@ Bocchi the Rock!"
         const percent = Math.min(99, Math.round(((compareCount - 1) / estimatedTotal) * 100));
 
         progressBar.style.width = `${percent}%`;
-        compareCounter.textContent = `Porównanie #${compareCount} • Postęp: ~${percent}% • Tytułów na liście: ${entries.length}`;
+        compareCounter.textContent = t.progressText(compareCount, percent, entries.length);
 
         renderCompareCard(cardA, a);
         renderCompareCard(cardB, b);
@@ -1622,16 +1809,17 @@ Bocchi the Rock!"
       }
 
       function renderCompareCard(card, entry) {
+        const t = translations[currentLang];
         card.dataset.id = entry.id;
 
         const matched =
           entry.matchedTitle &&
           normalizeTitle(entry.matchedTitle) !== normalizeTitle(entry.name)
-            ? `Dopasowano: ${escapeHtml(entry.matchedTitle)}<br />`
+            ? `${t.matched}${escapeHtml(entry.matchedTitle)}<br />`
             : '';
 
         card.innerHTML = `
-          <img src="${escapeHtml(entry.coverUrl || PLACEHOLDER_COVER)}" alt="" />
+          <img src="${escapeHtml(entry.coverUrl || getPlaceholderCover())}" alt="" />
           <h3>${escapeHtml(entry.name)}</h3>
           <p class="muted">
             ${matched}
@@ -1639,18 +1827,19 @@ Bocchi the Rock!"
               href="${escapeHtml(entry.infoUrl || malSearchUrl(entry.name))}"
               target="_blank"
               rel="noopener"
-            >Info</a>
+            >${escapeHtml(t.infoLink)}</a>
           </p>
         `;
 
         const img = card.querySelector('img');
 
         img.addEventListener('error', () => {
-          img.src = PLACEHOLDER_COVER;
+          img.src = getPlaceholderCover();
         });
       }
 
       function renderRanking(clusters) {
+        const t = translations[currentLang];
         rankList.innerHTML = '';
         let currentRank = 1;
 
@@ -1670,7 +1859,7 @@ Bocchi the Rock!"
             row.innerHTML = `
               <div class="rank-number">${rankForThisCluster}.</div>
 
-              <img src="${escapeHtml(entry.coverUrl || PLACEHOLDER_COVER)}" alt="" />
+              <img src="${escapeHtml(entry.coverUrl || getPlaceholderCover())}" alt="" />
 
               <div>
                 <strong>${escapeHtml(entry.name)}</strong>
@@ -1679,7 +1868,7 @@ Bocchi the Rock!"
                     href="${escapeHtml(entry.infoUrl || malSearchUrl(entry.name))}"
                     target="_blank"
                     rel="noopener"
-                  >Info</a>${scoreText}
+                  >${escapeHtml(t.infoLink)}</a>${scoreText}
                 </div>
               </div>
             `;
@@ -1687,7 +1876,7 @@ Bocchi the Rock!"
             const img = row.querySelector('img');
 
             img.addEventListener('error', () => {
-              img.src = PLACEHOLDER_COVER;
+              img.src = getPlaceholderCover();
             });
 
             rankList.appendChild(row);
