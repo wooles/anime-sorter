@@ -333,9 +333,12 @@ Bocchi the Rock!"
   <section id="resultView" class="hidden">
     <div class="controls">
       <button id="exportImageBtn" class="secondary">📸 Pobierz ranking jako obraz (PNG)</button>
+      <button id="uploadLitterboxBtn" class="secondary">☁️ Wrzuć na Litterbox (link)</button>
       <button id="compareAgainBtn">Porównaj jeszcze raz</button>
       <button id="backFromResultBtn" class="secondary">Wróć do listy</button>
     </div>
+
+    <div id="uploadResult"></div>
 
     <div id="rankingExportArea">
       <h2>Twój ranking</h2>
@@ -372,6 +375,8 @@ Bocchi the Rock!"
       const rankingExportArea = document.getElementById('rankingExportArea');
       const rankList = document.getElementById('rankList');
       const exportImageBtn = document.getElementById('exportImageBtn');
+      const uploadLitterboxBtn = document.getElementById('uploadLitterboxBtn');
+      const uploadResult = document.getElementById('uploadResult');
       const compareAgainBtn = document.getElementById('compareAgainBtn');
       const backFromResultBtn = document.getElementById('backFromResultBtn');
 
@@ -415,6 +420,7 @@ Bocchi the Rock!"
       cancelCompareBtn.addEventListener('click', cancelCompare);
       tieBtn.addEventListener('click', chooseTie);
       exportImageBtn.addEventListener('click', exportRankingToImage);
+      uploadLitterboxBtn.addEventListener('click', uploadRankingToLitterbox);
       compareAgainBtn.addEventListener('click', startRanking);
       backFromResultBtn.addEventListener('click', showSetup);
 
@@ -455,7 +461,6 @@ Bocchi the Rock!"
 
         const cleanUrl = imgUrl.replace(/^https?:\/\//, '');
 
-        // WordPress Photon i Google Proxy są w 100% zgodne z Brave Shields i mają pełne nagłówki CORS
         const sourcesToTry = [
           `https://i0.wp.com/${cleanUrl}`,
           `https://i1.wp.com/${cleanUrl}`,
@@ -482,6 +487,43 @@ Bocchi the Rock!"
         return imgUrl;
       }
 
+      async function prepareImagesForCanvas() {
+        const imgElements = Array.from(rankingExportArea.querySelectorAll('img'));
+        const originalSources = imgElements.map((img) => img.src);
+
+        await Promise.all(
+          imgElements.map(async (img) => {
+            if (img.src && !img.src.startsWith('data:')) {
+              const base64 = await convertImgToBase64(img.src);
+              if (base64 && base64.startsWith('data:image')) {
+                img.src = base64;
+              }
+            }
+          })
+        );
+
+        await Promise.all(
+          imgElements.map(
+            (img) =>
+              new Promise((resolve) => {
+                if (img.complete && img.naturalHeight !== 0) {
+                  if (img.decode) img.decode().then(resolve).catch(resolve);
+                  else resolve();
+                } else {
+                  img.onload = () => {
+                    if (img.decode) img.decode().then(resolve).catch(resolve);
+                    else resolve();
+                  };
+                  img.onerror = resolve;
+                }
+              })
+          )
+        );
+
+        await sleep(250);
+        return { imgElements, originalSources };
+      }
+
       async function exportRankingToImage() {
         if (typeof html2canvas === 'undefined') {
           alert('Błąd: Biblioteka do generowania obrazów nie została załadowana. Sprawdź połączenie z internetem.');
@@ -492,46 +534,10 @@ Bocchi the Rock!"
         exportImageBtn.disabled = true;
         exportImageBtn.textContent = '⏳ Przygotowywanie okładek...';
 
-        const imgElements = Array.from(rankingExportArea.querySelectorAll('img'));
-        const originalSources = imgElements.map((img) => img.src);
+        let imgData = null;
 
         try {
-          // Konwersja okładek na format Base64 Data URL
-          await Promise.all(
-            imgElements.map(async (img) => {
-              if (img.src && !img.src.startsWith('data:')) {
-                const base64 = await convertImgToBase64(img.src);
-                if (base64 && base64.startsWith('data:image')) {
-                  img.src = base64;
-                }
-              }
-            })
-          );
-
-          // Oczekiwanie na zdekodowanie obrazów
-          await Promise.all(
-            imgElements.map(
-              (img) =>
-                new Promise((resolve) => {
-                  if (img.complete && img.naturalHeight !== 0) {
-                    if (img.decode) {
-                      img.decode().then(resolve).catch(resolve);
-                    } else {
-                      resolve();
-                    }
-                  } else {
-                    img.onload = () => {
-                      if (img.decode) img.decode().then(resolve).catch(resolve);
-                      else resolve();
-                    };
-                    img.onerror = resolve;
-                  }
-                })
-            )
-          );
-
-          await sleep(250);
-
+          imgData = await prepareImagesForCanvas();
           exportImageBtn.textContent = '⏳ Generowanie pliku graficznego...';
 
           const isDark = document.body.classList.contains('dark');
@@ -553,11 +559,117 @@ Bocchi the Rock!"
           console.error('Błąd eksportu grafiki:', err);
           alert('Nie udało się wyeksportować obrazu: ' + (err?.message || err));
         } finally {
-          imgElements.forEach((img, index) => {
-            img.src = originalSources[index];
-          });
+          if (imgData) {
+            imgData.imgElements.forEach((img, index) => {
+              img.src = imgData.originalSources[index];
+            });
+          }
           exportImageBtn.disabled = false;
           exportImageBtn.textContent = originalText;
+        }
+      }
+
+      async function uploadRankingToLitterbox() {
+        if (typeof html2canvas === 'undefined') {
+          alert('Błąd: Biblioteka do generowania obrazów nie została załadowana. Sprawdź połączenie z internetem.');
+          return;
+        }
+
+        const originalText = uploadLitterboxBtn.textContent;
+        uploadLitterboxBtn.disabled = true;
+        uploadLitterboxBtn.textContent = '⏳ Przygotowywanie okładek...';
+        uploadResult.innerHTML = '';
+
+        let imgData = null;
+
+        try {
+          imgData = await prepareImagesForCanvas();
+          uploadLitterboxBtn.textContent = '⏳ Renderowanie obrazu...';
+
+          const isDark = document.body.classList.contains('dark');
+          const bgColor = isDark ? '#121214' : '#f7f7f7';
+
+          const canvas = await html2canvas(rankingExportArea, {
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: bgColor,
+            scale: 2,
+            logging: false
+          });
+
+          uploadLitterboxBtn.textContent = '⏳ Wysyłanie na Litterbox...';
+
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+          if (!blob) throw new Error('Nie udało się utworzyć pliku graficznego.');
+
+          const formData = new FormData();
+          formData.append('reqtype', 'fileupload');
+          formData.append('time', '72h');
+          formData.append('fileToUpload', blob, `ranking-anime-${new Date().toISOString().slice(0, 10)}.png`);
+
+          let response = null;
+          try {
+            response = await fetch('https://litterbox.catbox.moe/resources/internals/api.php', {
+              method: 'POST',
+              body: formData
+            });
+          } catch (e) {
+            // W przypadku restrykcyjnych polityk CORS wyślij zapytanie przez corsproxy
+            const fallbackData = new FormData();
+            fallbackData.append('reqtype', 'fileupload');
+            fallbackData.append('time', '72h');
+            fallbackData.append('fileToUpload', blob, `ranking-anime-${new Date().toISOString().slice(0, 10)}.png`);
+
+            response = await fetch('https://corsproxy.io/?' + encodeURIComponent('https://litterbox.catbox.moe/resources/internals/api.php'), {
+              method: 'POST',
+              body: fallbackData
+            });
+          }
+
+          if (!response || !response.ok) {
+            throw new Error(`Błąd serwera Litterbox (${response ? response.status : 'brak odpowiedzi'}).`);
+          }
+
+          const fileUrl = (await response.text()).trim();
+
+          if (!fileUrl.startsWith('http')) {
+            throw new Error('Litterbox zwrócił odpowiedź: ' + fileUrl);
+          }
+
+          // Automatyczne kopiowanie do schowka
+          try {
+            await navigator.clipboard.writeText(fileUrl);
+          } catch (e) {}
+
+          uploadResult.innerHTML = `
+            <div style="margin: 12px 0; padding: 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+              <div>
+                <strong>Link do obrazu (skopiowano do schowka, ważny 72h):</strong><br />
+                <a href="${escapeHtml(fileUrl)}" target="_blank" rel="noopener">${escapeHtml(fileUrl)}</a>
+              </div>
+              <button type="button" class="secondary" id="copyUrlBtn">Kopiuj link</button>
+            </div>
+          `;
+
+          document.getElementById('copyUrlBtn')?.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(fileUrl);
+              alert('Skopiowano link do schowka!');
+            } catch (e) {
+              prompt('Skopiuj link poniżej:', fileUrl);
+            }
+          });
+        } catch (err) {
+          console.error('Błąd uploadu na Litterbox:', err);
+          alert('Nie udało się wysłać obrazu na Litterbox: ' + (err?.message || err));
+        } finally {
+          if (imgData) {
+            imgData.imgElements.forEach((img, index) => {
+              img.src = imgData.originalSources[index];
+            });
+          }
+          uploadLitterboxBtn.disabled = false;
+          uploadLitterboxBtn.textContent = originalText;
         }
       }
 
