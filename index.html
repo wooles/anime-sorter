@@ -363,8 +363,8 @@ Bocchi the Rock!"
       const compareAgainBtn = document.getElementById('compareAgainBtn');
       const backFromResultBtn = document.getElementById('backFromResultBtn');
 
-      const STORAGE_KEY = 'manual-anime-sorter:entries:v1';
-      const COVER_CACHE_PREFIX = 'manual-anime-cover:v1:';
+      const STORAGE_KEY = 'manual-anime-sorter:entries:v4';
+      const COVER_CACHE_PREFIX = 'manual-anime-cover:v4:';
       const THEME_KEY = 'manual-anime-sorter:theme:v1';
 
       const PLACEHOLDER_COVER =
@@ -477,12 +477,16 @@ Bocchi the Rock!"
           infoUrl: malSearchUrl(name.trim()),
           status: 'pending',
           matchedTitle: '',
-          source: ''
+          source: '',
+          score: '',
+          scoreSource: ''
         };
       }
 
       function normalizeTitle(value = '') {
         return String(value)
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
           .toLowerCase()
           .trim()
           .replace(/[^\p{L}\p{N}\s]/gu, ' ')
@@ -490,20 +494,33 @@ Bocchi the Rock!"
       }
 
       function getSearchQueries(rawTitle) {
-        const queries = [rawTitle.trim()];
-
-        const cleaned = rawTitle.replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
-        if (cleaned && cleaned !== rawTitle.trim() && !queries.includes(cleaned)) {
-          queries.push(cleaned);
-        }
-
-        const splitMatch = rawTitle.split(/[:\-\~|/()\[\]]/)[0]?.trim();
-        if (splitMatch && splitMatch.length >= 3 && !queries.includes(splitMatch)) {
-          queries.push(splitMatch);
-          const cleanedSplit = splitMatch.replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
-          if (cleanedSplit && !queries.includes(cleanedSplit)) {
-            queries.push(cleanedSplit);
+        const queries = [];
+        const add = (q) => {
+          const trimmed = q?.trim();
+          if (trimmed && trimmed.length >= 2 && !queries.includes(trimmed)) {
+            queries.push(trimmed);
           }
+        };
+
+        add(rawTitle);
+
+        const noAccents = rawTitle.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        add(noAccents);
+
+        const noSeason = noAccents
+          .replace(/\b(\d+(st|nd|rd|th)?\s+season|season\s+\d+|part\s+\d+|cour\s+\d+)\b/gi, ' ')
+          .replace(/\s+/g, ' ');
+        add(noSeason);
+
+        const beforePunct = noAccents.split(/[:\-\~|/()\[\]]/)[0];
+        add(beforePunct);
+
+        const clean = noAccents.replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ');
+        add(clean);
+
+        const words = clean.split(' ').filter(Boolean);
+        if (words.length > 3) {
+          add(words.slice(0, 3).join(' '));
         }
 
         return queries;
@@ -566,7 +583,7 @@ Bocchi the Rock!"
           if (isFetching) {
             setStatus(`Dodano ${added} tytułów. Trwa już pobieranie okładek.`);
           } else {
-            setStatus(`Dodano ${added} tytułów. Pobieranie okładek...`);
+            setStatus(`Dodano ${added} tytułów. Pobieranie okładek i ocen...`);
             fetchAllCovers();
           }
         } else {
@@ -585,14 +602,14 @@ Bocchi the Rock!"
         const missing = entries.filter((entry) => entry.status !== 'ok');
 
         if (!missing.length) {
-          setStatus('Wszystkie okładki są już pobrane.');
+          setStatus('Wszystkie okładki i oceny są już pobrane.');
           return;
         }
 
         isFetching = true;
         updateControls();
         setError('');
-        setStatus('Pobieranie okładek...');
+        setStatus('Pobieranie okładek i ocen...');
 
         for (const entry of entries) {
           if (entry.status === 'ok') continue;
@@ -608,9 +625,11 @@ Bocchi the Rock!"
             entry.infoUrl = result.infoUrl || entry.infoUrl || malSearchUrl(entry.name);
             entry.matchedTitle = result.matchedTitle || '';
             entry.source = result.source || '';
+            entry.score = result.score || '';
+            entry.scoreSource = result.scoreSource || '';
             entry.status = 'ok';
           } catch (err) {
-            console.warn(`Nie udało się pobrać okładki dla: ${entry.name}`, err);
+            console.warn(`Nie udało się pobrać danych dla: ${entry.name}`, err);
 
             entry.coverUrl = '';
             entry.status = 'error';
@@ -620,67 +639,113 @@ Bocchi the Rock!"
           saveEntries();
           renderEntries();
 
-          await sleep(700);
+          await sleep(400);
         }
 
         isFetching = false;
         updateControls();
         renderEntries();
-        setStatus('Zakończono pobieranie okładek.');
+        setStatus('Zakończono pobieranie okładek i ocen.');
       }
 
       async function getCoverForTitle(title) {
         const cached = readCoverCache(title);
 
-        if (cached) {
+        if (cached && (cached.coverUrl || cached.score)) {
           return cached;
         }
 
+        let coverUrl = '';
+        let infoUrl = '';
+        let matchedTitle = '';
+        let source = '';
+        let score = '';
+        let scoreSource = '';
         const errors = [];
 
-        // 1. AniList
+        // 1. AniList (Okładka + Ocena)
         try {
-          const anilistResult = await fetchAnilistCover(title);
-          writeCoverCache(title, anilistResult);
-          return anilistResult;
+          const anilistResult = await fetchAnilistData(title);
+          if (anilistResult.coverUrl) {
+            coverUrl = anilistResult.coverUrl;
+            source = 'AniList';
+          }
+          if (anilistResult.infoUrl) infoUrl = anilistResult.infoUrl;
+          if (anilistResult.matchedTitle) matchedTitle = anilistResult.matchedTitle;
+          if (anilistResult.score) {
+            score = anilistResult.score;
+            scoreSource = 'AniList';
+          }
         } catch (err) {
           errors.push('AniList: ' + (err?.message || err));
         }
 
-        // 2. Kitsu
-        try {
-          await sleep(300);
-          const kitsuResult = await fetchKitsuCover(title);
-          writeCoverCache(title, kitsuResult);
-          return kitsuResult;
-        } catch (err) {
-          errors.push('Kitsu: ' + (err?.message || err));
+        // 2. Kitsu (Okładka jeśli brak + Ocena jako fallback)
+        if (!coverUrl || !score) {
+          try {
+            await sleep(250);
+            const kitsuResult = await fetchKitsuData(title);
+            if (!coverUrl && kitsuResult.coverUrl) {
+              coverUrl = kitsuResult.coverUrl;
+              source = 'Kitsu';
+            }
+            if (!infoUrl) infoUrl = kitsuResult.infoUrl;
+            if (!matchedTitle) matchedTitle = kitsuResult.matchedTitle;
+            if (!score && kitsuResult.score) {
+              score = kitsuResult.score;
+              scoreSource = 'Kitsu';
+            }
+          } catch (err) {
+            errors.push('Kitsu: ' + (err?.message || err));
+          }
         }
 
-        // 3. MyAnimeList (Jikan)
-        try {
-          await sleep(300);
-          const jikanResult = await fetchJikanCover(title);
-          writeCoverCache(title, jikanResult);
-          return jikanResult;
-        } catch (err) {
-          errors.push('MyAnimeList: ' + (err?.message || err));
+        // 3. MyAnimeList (Jikan) - wyłącznie jako ostateczny fallback dla okładki
+        if (!coverUrl) {
+          try {
+            await sleep(350);
+            const jikanResult = await fetchJikanCover(title);
+            if (jikanResult.coverUrl) {
+              coverUrl = jikanResult.coverUrl;
+              source = jikanResult.source;
+            }
+            if (!infoUrl) infoUrl = jikanResult.infoUrl;
+            if (!matchedTitle) matchedTitle = jikanResult.matchedTitle;
+          } catch (err) {
+            errors.push('MyAnimeList: ' + (err?.message || err));
+          }
         }
 
-        throw new Error(errors.join(' | '));
+        if (!coverUrl && !matchedTitle && !score) {
+          throw new Error(errors.join(' | '));
+        }
+
+        const result = {
+          coverUrl,
+          infoUrl: infoUrl || malSearchUrl(title),
+          matchedTitle: matchedTitle || title,
+          source: source || 'AniList',
+          score,
+          scoreSource
+        };
+
+        writeCoverCache(title, result);
+        return result;
       }
 
-      async function fetchAnilistCover(title) {
+      async function fetchAnilistData(title) {
         const queries = getSearchQueries(title);
         let lastError = null;
 
-        for (const q of queries) {
+        for (const q of queries.slice(0, 3)) {
           try {
             const query = `
               query ($search: String) {
-                Media(search: $search, type: ANIME) {
+                Media(search: $search) {
                   id
                   siteUrl
+                  averageScore
+                  meanScore
                   title {
                     romaji
                     english
@@ -714,8 +779,8 @@ Bocchi the Rock!"
             if (!media) continue;
 
             const coverUrl = media.coverImage?.large || media.coverImage?.medium || '';
-
-            if (!coverUrl) continue;
+            const scoreVal = media.averageScore || media.meanScore;
+            const score = scoreVal ? `${scoreVal}%` : '';
 
             return {
               coverUrl,
@@ -725,7 +790,7 @@ Bocchi the Rock!"
                 media.title?.english ||
                 media.title?.native ||
                 title,
-              source: 'anilist'
+              score
             };
           } catch (err) {
             lastError = err;
@@ -735,11 +800,12 @@ Bocchi the Rock!"
         throw lastError || new Error('Brak wyników w AniList.');
       }
 
-      async function fetchKitsuCover(title) {
+      async function fetchKitsuData(title) {
         const queries = getSearchQueries(title);
         let lastError = null;
 
-        for (const q of queries) {
+        // 1. Szukaj w anime Kitsu
+        for (const q of queries.slice(0, 3)) {
           try {
             const params = new URLSearchParams({
               'filter[text]': q,
@@ -747,11 +813,8 @@ Bocchi the Rock!"
             });
 
             const url = `https://kitsu.io/api/edge/anime?${params.toString()}`;
-
             const res = await fetchWithTimeout(url, {
-              headers: {
-                'Accept': 'application/vnd.api+json'
-              }
+              headers: { 'Accept': 'application/vnd.api+json' }
             });
 
             if (!res.ok) continue;
@@ -771,8 +834,6 @@ Bocchi the Rock!"
               attrs.posterImage?.tiny ||
               '';
 
-            if (!coverUrl) continue;
-
             const matchedTitle =
               attrs.canonicalTitle ||
               attrs.titles?.en ||
@@ -783,11 +844,72 @@ Bocchi the Rock!"
               ? `https://kitsu.io/anime/${attrs.slug}`
               : `https://kitsu.io/anime?text=${encodeURIComponent(title)}`;
 
+            let score = '';
+            if (attrs.averageRating && !isNaN(attrs.averageRating)) {
+              score = `${Math.round(Number(attrs.averageRating))}%`;
+            }
+
             return {
               coverUrl,
               infoUrl,
               matchedTitle,
-              source: 'kitsu'
+              score
+            };
+          } catch (err) {
+            lastError = err;
+          }
+        }
+
+        // 2. Szukaj w mandze Kitsu (fallback)
+        for (const q of queries.slice(0, 3)) {
+          try {
+            const params = new URLSearchParams({
+              'filter[text]': q,
+              'page[limit]': '3'
+            });
+
+            const url = `https://kitsu.io/api/edge/manga?${params.toString()}`;
+            const res = await fetchWithTimeout(url, {
+              headers: { 'Accept': 'application/vnd.api+json' }
+            });
+
+            if (!res.ok) continue;
+
+            const json = await res.json();
+            const list = Array.isArray(json.data) ? json.data : [];
+            if (!list.length) continue;
+
+            const item = list[0];
+            const attrs = item.attributes || {};
+
+            const coverUrl =
+              attrs.posterImage?.original ||
+              attrs.posterImage?.large ||
+              attrs.posterImage?.medium ||
+              attrs.posterImage?.small ||
+              attrs.posterImage?.tiny ||
+              '';
+
+            const matchedTitle =
+              attrs.canonicalTitle ||
+              attrs.titles?.en ||
+              attrs.titles?.en_jp ||
+              title;
+
+            const infoUrl = attrs.slug
+              ? `https://kitsu.io/manga/${attrs.slug}`
+              : `https://kitsu.io/manga?text=${encodeURIComponent(title)}`;
+
+            let score = '';
+            if (attrs.averageRating && !isNaN(attrs.averageRating)) {
+              score = `${Math.round(Number(attrs.averageRating))}%`;
+            }
+
+            return {
+              coverUrl,
+              infoUrl,
+              matchedTitle,
+              score
             };
           } catch (err) {
             lastError = err;
@@ -797,85 +919,71 @@ Bocchi the Rock!"
         throw lastError || new Error('Brak wyników w Kitsu.');
       }
 
+      async function fetchJikanWithRetry(url, retries = 2) {
+        for (let i = 0; i <= retries; i++) {
+          try {
+            const res = await fetchWithTimeout(url, { headers: { 'Accept': 'application/json' } }, 12000);
+            if (res.status === 429) {
+              await sleep(1500 * (i + 1));
+              continue;
+            }
+            if (!res.ok) return null;
+            const json = await res.json();
+            return Array.isArray(json.data) ? json.data : [];
+          } catch (err) {
+            if (i === retries) return null;
+            await sleep(1000);
+          }
+        }
+        return null;
+      }
+
       async function fetchJikanCover(title) {
         const queries = getSearchQueries(title);
-        let lastError = null;
+        let bestItem = null;
+        let isManga = false;
 
-        for (const q of queries) {
-          try {
-            const url = `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(q)}&limit=5`;
-
-            let res = await fetchWithTimeout(url, {
-              headers: { 'Accept': 'application/json' }
-            });
-
-            if (res.status === 429) {
-              await sleep(1200);
-              res = await fetchWithTimeout(url, {
-                headers: { 'Accept': 'application/json' }
-              });
-            }
-
-            if (!res.ok) continue;
-
-            const json = await res.json();
-            const data = Array.isArray(json.data) ? json.data : [];
+        for (const q of queries.slice(0, 2)) {
+          const url = `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(q)}&limit=5`;
+          const data = await fetchJikanWithRetry(url);
+          if (data && data.length) {
             const item = chooseBestJikanResult(data, title);
-
-            if (!item) continue;
-
-            const coverUrl = getJikanImageUrl(item);
-            if (!coverUrl) continue;
-
-            return {
-              coverUrl,
-              infoUrl: item.url || malSearchUrl(title),
-              matchedTitle: item.title || title,
-              source: 'myanimelist'
-            };
-          } catch (err) {
-            lastError = err;
+            if (item) {
+              bestItem = item;
+              break;
+            }
           }
+          await sleep(350);
         }
 
-        for (const q of queries) {
-          try {
+        if (!bestItem) {
+          for (const q of queries.slice(0, 2)) {
             const url = `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q)}&limit=5`;
-
-            let res = await fetchWithTimeout(url, {
-              headers: { 'Accept': 'application/json' }
-            });
-
-            if (res.status === 429) {
-              await sleep(1200);
-              res = await fetchWithTimeout(url, {
-                headers: { 'Accept': 'application/json' }
-              });
+            const data = await fetchJikanWithRetry(url);
+            if (data && data.length) {
+              const item = chooseBestJikanResult(data, title);
+              if (item) {
+                bestItem = item;
+                isManga = true;
+                break;
+              }
             }
-
-            if (!res.ok) continue;
-
-            const json = await res.json();
-            const data = Array.isArray(json.data) ? json.data : [];
-            const item = chooseBestJikanResult(data, title);
-
-            if (!item) continue;
-
-            const coverUrl = getJikanImageUrl(item);
-            if (!coverUrl) continue;
-
-            return {
-              coverUrl,
-              infoUrl: item.url || malSearchUrl(title),
-              matchedTitle: item.title || title,
-              source: 'myanimelist (manga/ln)'
-            };
-          } catch (err) {
-            lastError = err;
+            await sleep(350);
           }
         }
 
-        throw lastError || new Error('Brak wyników w MyAnimeList (Jikan).');
+        if (!bestItem) {
+          throw new Error('Brak wyników w MyAnimeList.');
+        }
+
+        const coverUrl = getJikanImageUrl(bestItem);
+
+        return {
+          coverUrl,
+          infoUrl: bestItem.url || malSearchUrl(title),
+          matchedTitle: bestItem.title || title,
+          source: isManga ? 'MyAnimeList (manga)' : 'MyAnimeList'
+        };
       }
 
       function getJikanImageUrl(item) {
@@ -889,7 +997,7 @@ Bocchi the Rock!"
       }
 
       function chooseBestJikanResult(list, query) {
-        if (!list.length) return null;
+        if (!list || !list.length) return null;
 
         const normalizedQuery = normalizeTitle(query);
 
@@ -1007,6 +1115,8 @@ Bocchi the Rock!"
           status: 'pending',
           matchedTitle: '',
           source: '',
+          score: '',
+          scoreSource: '',
           infoUrl: malSearchUrl(entry.name)
         }));
 
@@ -1055,7 +1165,9 @@ Bocchi the Rock!"
                     ? 'error'
                     : 'pending',
               matchedTitle: typeof item.matchedTitle === 'string' ? item.matchedTitle : '',
-              source: typeof item.source === 'string' ? item.source : ''
+              source: typeof item.source === 'string' ? item.source : '',
+              score: typeof item.score === 'string' ? item.score : '',
+              scoreSource: typeof item.scoreSource === 'string' ? item.scoreSource : ''
             }));
         } catch (err) {
           console.warn('Błąd wczytywania listy tytułów:', err);
@@ -1105,7 +1217,7 @@ Bocchi the Rock!"
       function statusLabel(status) {
         const labels = {
           pending: 'Oczekuje na okładkę',
-          loading: 'Pobieranie okładki...',
+          loading: 'Pobieranie okładki i ocen...',
           ok: 'OK',
           error: 'Nie pobrano okładki'
         };
@@ -1309,6 +1421,12 @@ Bocchi the Rock!"
             const row = document.createElement('div');
             row.className = 'ranking-item';
 
+            let scoreText = '';
+            if (entry.score) {
+              const sourceLabel = entry.scoreSource || 'AniList';
+              scoreText = ` • ${escapeHtml(sourceLabel)}: ★ ${escapeHtml(entry.score)}`;
+            }
+
             row.innerHTML = `
               <div class="rank-number">${rankForThisCluster}.</div>
 
@@ -1321,7 +1439,7 @@ Bocchi the Rock!"
                     href="${escapeHtml(entry.infoUrl || malSearchUrl(entry.name))}"
                     target="_blank"
                     rel="noopener"
-                  >Info</a>
+                  >Info</a>${scoreText}
                 </div>
               </div>
             `;
