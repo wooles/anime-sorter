@@ -179,12 +179,18 @@
       transition: width 0.25s ease;
     }
 
+    .tie-container {
+      display: flex;
+      justify-content: center;
+      margin: 16px 0 10px 0;
+    }
+
     .cards {
       display: flex;
       gap: 18px;
       flex-wrap: wrap;
       align-items: stretch;
-      margin-top: 20px;
+      margin-top: 10px;
     }
 
     .card {
@@ -214,12 +220,6 @@
       align-self: center;
       font-size: 30px;
       font-weight: 900;
-    }
-
-    .tie-container {
-      display: flex;
-      justify-content: center;
-      margin-top: 18px;
     }
 
     .ranking-item {
@@ -310,16 +310,16 @@ Bocchi the Rock!"
       <button id="cancelCompareBtn" class="danger">Przerwij i wróć do listy</button>
     </div>
 
-    <div class="cards" id="compareCards">
-      <div class="card" id="cardA"></div>
-      <div class="vs">VS</div>
-      <div class="card" id="cardB"></div>
-    </div>
-
     <div class="tie-container">
       <button id="tieBtn" class="secondary" style="font-size: 16px; font-weight: bold; padding: 12px 24px;">
         🤝 Remis (oba tak samo dobre)
       </button>
+    </div>
+
+    <div class="cards" id="compareCards">
+      <div class="card" id="cardA"></div>
+      <div class="vs">VS</div>
+      <div class="card" id="cardB"></div>
     </div>
   </section>
 
