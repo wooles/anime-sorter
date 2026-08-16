@@ -20,14 +20,17 @@ A client-side pairwise anime and manga ranking tool. Allows users to run through
 3. Click **Rozpocznij porównywanie** and select preferred titles (or Ties) until the progress bar reaches 100%.
 4. Review the final ranking and choose to either download the result as a `.png` file or upload it directly to Litterbox for sharing.
 
-### Deployment
+### Running & Deployment
 
-This project consists of a single standalone `index.html` file and requires no build pipeline.
+This project consists of a single standalone `index.html` file and requires no build pipeline, dependencies, or server setup.
 
-To host on GitHub Pages:
-1. Go to repository **Settings** -> **Pages**.
-2. Under **Branch**, select `main` (or `master`) and folder `/ (root)`.
-3. Click **Save**.
+* **Running Locally:**
+  Simply download or save `index.html` to your computer and double-click to open it in any modern web browser.
+
+* **Hosting on GitHub Pages (Optional):**
+  1. Go to repository **Settings** -> **Pages**.
+  2. Under **Branch**, select `main` (or `master`) and folder `/ (root)`.
+  3. Click **Save**.
 
 ### Built With
 
