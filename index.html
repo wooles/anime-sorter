@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ranking anime</title>
 
+  <!-- Biblioteka do generowania pliku graficznego -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
   <style>
     :root {
       --bg: #f7f7f7;
@@ -222,6 +225,10 @@
       font-weight: 900;
     }
 
+    #rankingExportArea {
+      padding: 8px 0;
+    }
+
     .ranking-item {
       display: flex;
       gap: 14px;
@@ -324,12 +331,15 @@ Bocchi the Rock!"
   </section>
 
   <section id="resultView" class="hidden">
-    <h2>Twój ranking</h2>
-    <div id="rankList"></div>
-
     <div class="controls">
+      <button id="exportImageBtn" class="secondary">📸 Pobierz ranking jako obraz (PNG)</button>
       <button id="compareAgainBtn">Porównaj jeszcze raz</button>
       <button id="backFromResultBtn" class="secondary">Wróć do listy</button>
+    </div>
+
+    <div id="rankingExportArea">
+      <h2>Twój ranking</h2>
+      <div id="rankList"></div>
     </div>
   </section>
 
@@ -359,7 +369,9 @@ Bocchi the Rock!"
       const tieBtn = document.getElementById('tieBtn');
 
       const resultView = document.getElementById('resultView');
+      const rankingExportArea = document.getElementById('rankingExportArea');
       const rankList = document.getElementById('rankList');
+      const exportImageBtn = document.getElementById('exportImageBtn');
       const compareAgainBtn = document.getElementById('compareAgainBtn');
       const backFromResultBtn = document.getElementById('backFromResultBtn');
 
@@ -402,6 +414,7 @@ Bocchi the Rock!"
       startBtn.addEventListener('click', startRanking);
       cancelCompareBtn.addEventListener('click', cancelCompare);
       tieBtn.addEventListener('click', chooseTie);
+      exportImageBtn.addEventListener('click', exportRankingToImage);
       compareAgainBtn.addEventListener('click', startRanking);
       backFromResultBtn.addEventListener('click', showSetup);
 
@@ -427,6 +440,125 @@ Bocchi the Rock!"
         const newTheme = isDark ? 'light' : 'dark';
         localStorage.setItem(THEME_KEY, newTheme);
         applyTheme(newTheme);
+      }
+
+      async function convertImgToBase64(imgUrl) {
+        if (!imgUrl || imgUrl.startsWith('data:')) return imgUrl;
+
+        const blobToDataURL = (blob) =>
+          new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+
+        const cleanUrl = imgUrl.replace(/^https?:\/\//, '');
+
+        // WordPress Photon i Google Proxy są w 100% zgodne z Brave Shields i mają pełne nagłówki CORS
+        const sourcesToTry = [
+          `https://i0.wp.com/${cleanUrl}`,
+          `https://i1.wp.com/${cleanUrl}`,
+          `https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=${encodeURIComponent(imgUrl)}`,
+          `https://wsrv.nl/?url=${encodeURIComponent(imgUrl)}&output=jpg`,
+          imgUrl
+        ];
+
+        for (const url of sourcesToTry) {
+          try {
+            const res = await fetchWithTimeout(url, { mode: 'cors' }, 5000);
+            if (res.ok) {
+              const blob = await res.blob();
+              if (blob && blob.size > 200) {
+                const dataUrl = await blobToDataURL(blob);
+                if (dataUrl && dataUrl.startsWith('data:image')) {
+                  return dataUrl;
+                }
+              }
+            }
+          } catch (e) {}
+        }
+
+        return imgUrl;
+      }
+
+      async function exportRankingToImage() {
+        if (typeof html2canvas === 'undefined') {
+          alert('Błąd: Biblioteka do generowania obrazów nie została załadowana. Sprawdź połączenie z internetem.');
+          return;
+        }
+
+        const originalText = exportImageBtn.textContent;
+        exportImageBtn.disabled = true;
+        exportImageBtn.textContent = '⏳ Przygotowywanie okładek...';
+
+        const imgElements = Array.from(rankingExportArea.querySelectorAll('img'));
+        const originalSources = imgElements.map((img) => img.src);
+
+        try {
+          // Konwersja okładek na format Base64 Data URL
+          await Promise.all(
+            imgElements.map(async (img) => {
+              if (img.src && !img.src.startsWith('data:')) {
+                const base64 = await convertImgToBase64(img.src);
+                if (base64 && base64.startsWith('data:image')) {
+                  img.src = base64;
+                }
+              }
+            })
+          );
+
+          // Oczekiwanie na zdekodowanie obrazów
+          await Promise.all(
+            imgElements.map(
+              (img) =>
+                new Promise((resolve) => {
+                  if (img.complete && img.naturalHeight !== 0) {
+                    if (img.decode) {
+                      img.decode().then(resolve).catch(resolve);
+                    } else {
+                      resolve();
+                    }
+                  } else {
+                    img.onload = () => {
+                      if (img.decode) img.decode().then(resolve).catch(resolve);
+                      else resolve();
+                    };
+                    img.onerror = resolve;
+                  }
+                })
+            )
+          );
+
+          await sleep(250);
+
+          exportImageBtn.textContent = '⏳ Generowanie pliku graficznego...';
+
+          const isDark = document.body.classList.contains('dark');
+          const bgColor = isDark ? '#121214' : '#f7f7f7';
+
+          const canvas = await html2canvas(rankingExportArea, {
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: bgColor,
+            scale: 2,
+            logging: false
+          });
+
+          const link = document.createElement('a');
+          link.download = `ranking-anime-${new Date().toISOString().slice(0, 10)}.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        } catch (err) {
+          console.error('Błąd eksportu grafiki:', err);
+          alert('Nie udało się wyeksportować obrazu: ' + (err?.message || err));
+        } finally {
+          imgElements.forEach((img, index) => {
+            img.src = originalSources[index];
+          });
+          exportImageBtn.disabled = false;
+          exportImageBtn.textContent = originalText;
+        }
       }
 
       entryList.addEventListener('click', (e) => {
@@ -700,7 +832,7 @@ Bocchi the Rock!"
           }
         }
 
-        // 3. MyAnimeList (Jikan) - wyłącznie jako ostateczny fallback dla okładki
+        // 3. MyAnimeList (Jikan) - jako fallback dla samej okładki
         if (!coverUrl) {
           try {
             await sleep(350);
@@ -804,7 +936,6 @@ Bocchi the Rock!"
         const queries = getSearchQueries(title);
         let lastError = null;
 
-        // 1. Szukaj w anime Kitsu
         for (const q of queries.slice(0, 3)) {
           try {
             const params = new URLSearchParams({
@@ -860,7 +991,6 @@ Bocchi the Rock!"
           }
         }
 
-        // 2. Szukaj w mandze Kitsu (fallback)
         for (const q of queries.slice(0, 3)) {
           try {
             const params = new URLSearchParams({
