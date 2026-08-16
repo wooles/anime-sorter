@@ -1,77 +1,43 @@
-🎌 Anime Sorter / Anime Ranking
-A lightweight, fully client-side web tool designed to create personalized anime and manga rankings through pairwise comparisons powered by the Merge Sort algorithm.
+# anime-sorter
 
-Inspired by classic character sorters (such as execfera/charasort), enhanced with automatic metadata retrieval, cover art fetching, community scores, and image export capabilities.
+A client-side pairwise anime and manga ranking tool. Allows users to run through an internal merge sort of their custom list of titles to produce a final ordered ranking.
 
-✨ Features
-Merge Sort Algorithm — Minimizes the number of comparisons required to build an accurate ranking (O(nlogn)).
+### Features
 
-Tie Handling — Option to declare a tie between two titles and assign shared ranks.
+* Entirely client-side, no backend server or database setup required.
+* Merge sort algorithm ($O(n \log n)$) to minimize the number of user comparisons.
+* Support for tie choices to allow shared ranking positions.
+* Automatic cover art and community rating retrieval via AniList GraphQL and Kitsu APIs.
+* High-resolution PNG image generation of the final ranking card.
+* Direct image upload to Litterbox (Catbox.moe) with automatic clipboard copy.
+* Dark / Light mode toggle with local storage persistence.
+* Local storage cache for fetched artwork and query metadata.
 
-Automatic Cover Art Fetching — Dynamic artwork matching with multi-source cascading fallbacks:
+### How to Use
 
-AniList (GraphQL API)
+1. Paste a list of anime or manga titles into the input area (one title per line).
+2. Click **Pobierz okładki** to resolve covers and community scores.
+3. Click **Rozpocznij porównywanie** and select preferred titles (or Ties) until the progress bar reaches 100%.
+4. Review the final ranking and choose to either download the result as a `.png` file or upload it directly to Litterbox for sharing.
 
-Kitsu (JSON API)
+### Deployment
 
-MyAnimeList (Jikan REST API)
+This project consists of a single standalone `index.html` file and requires no build pipeline.
 
-Community Ratings — Displays average percentage scores from AniList and Kitsu next to the final ranking entries.
+To host on GitHub Pages:
+1. Go to repository **Settings** -> **Pages**.
+2. Under **Branch**, select `main` (or `master`) and folder `/ (root)`.
+3. Click **Save**.
 
-Visual Progress Bar — Real-time estimated sorting completion indicator.
+### Built With
 
-Image Export (PNG) — Generates a high-resolution (2x scale) image snapshot of the completed ranking.
+* Vanilla HTML5 / CSS3 / JavaScript (ES6+)
+* [html2canvas](https://html2canvas.hertzen.com/) — Canvas screenshot rendering.
+* [AniList API](https://anilist.gitbook.io/anilist-apiv2-docs/) — GraphQL metadata and score queries.
+* [Kitsu API](https://kitsu.docs.apiary.io/) — Fallback metadata queries.
+* [Jikan API](https://jikan.moe/) — MyAnimeList search resolution.
+* [Litterbox](https://litterbox.catbox.moe/) — Temporary image hosting.
 
-Instant Litterbox Upload — Upload the generated graphic directly to Litterbox (Catbox.moe) with automatic clipboard URL copying (72-hour retention).
+### Credits
 
-Light & Dark Mode — Full theme support with preferences saved to localStorage.
-
-Zero Backend Dependencies — The entire application is self-contained in a single index.html file.
-
-Local Caching — Saved lists, ratings, and fetched covers persist locally in the browser's storage.
-
-🚀 How to Use
-Paste your list: Enter your anime or manga titles into the text area (one title per line).
-
-Fetch covers: Click Pobierz okładki (Fetch Covers) to automatically pull artwork and ratings from AniList / Kitsu / MyAnimeList.
-
-Start comparing: Click on the title you prefer, or select Remis (Tie) if you value both equally.
-
-Save & Share: Once sorting is complete, you can:
-
-Download the ranking as a .png file to your device.
-
-Generate a direct link via Litterbox to share with others.
-
-🛠️ Local Setup & Hosting
-No Node.js, web server, or build step required.
-
-Local:
-Clone or download the repository (or copy the index.html file).
-
-Open index.html in any modern web browser (Chrome, Brave, Firefox, Edge, Safari).
-
-Hosting (GitHub Pages):
-Navigate to Settings → Pages in your GitHub repository.
-
-Under Branch, select main (or master) and click Save.
-
-Your application will be live at:
-
-https://<your-username>.github.io/<repository-name>/
-
-📦 Built With & APIs Used
-HTML5 / CSS3 / Vanilla JavaScript (ES6+)
-
-html2canvas — Client-side DOM-to-Canvas / PNG rendering.
-
-AniList GraphQL API — Anime and manga metadata and rating retrieval.
-
-Kitsu API — Fallback database for covers and ratings.
-
-Jikan API — Unofficial MyAnimeList REST API for search fallback.
-
-Litterbox (Catbox.moe) — Temporary image hosting for exported ranking cards.
-
-💡 Acknowledgements & Inspiration
-execfera/charasort — The original inspiration for pairwise sorting workflows.
+* [execfera/charasort](https://github.com/execfera/charasort) for the original sorter inspiration.
