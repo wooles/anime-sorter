@@ -23,9 +23,9 @@ Built as a single-file application with zero backend requirements, automated met
 
 ---
 
-## Live Demo
+## Live version
 
-Try the live version at: **[https://sort.moe](https://sort.moe)** *(or via GitHub Pages)*
+Try the live version at: **[https://sort.moe](https://sort.moe)**
 
 ---
 
