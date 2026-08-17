@@ -24,6 +24,7 @@
       --thumb-bg: #dddddd;
       --progress-bg: #e2e2e2;
       --progress-bar: #2563eb;
+      --badge-airing: #16a34a;
     }
 
     body.dark {
@@ -41,6 +42,7 @@
       --thumb-bg: #2d2d38;
       --progress-bg: #2e2e38;
       --progress-bar: #3b82f6;
+      --badge-airing: #22c55e;
     }
 
     body {
@@ -170,9 +172,10 @@
     .entry-actions {
       margin-left: auto;
       display: flex;
-      gap: 10px;
+      gap: 8px;
       align-items: center;
       flex-shrink: 0;
+      flex-wrap: wrap;
     }
 
     .progress-container {
@@ -272,6 +275,90 @@
     a:hover {
       text-decoration: underline;
     }
+
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 16px;
+    }
+
+    .modal-content {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      max-width: 680px;
+      width: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 16px 32px var(--card-shadow);
+    }
+
+    .modal-header {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .candidate-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .candidate-card {
+      display: flex;
+      gap: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px;
+      cursor: pointer;
+      background: var(--surface);
+      transition: border-color 0.15s, transform 0.1s;
+    }
+
+    .candidate-card:hover {
+      border-color: var(--progress-bar);
+      transform: translateY(-2px);
+    }
+
+    .candidate-card img {
+      width: 50px;
+      height: 70px;
+      object-fit: cover;
+      border-radius: 6px;
+      background: var(--thumb-bg);
+      flex-shrink: 0;
+    }
+
+    .badge-airing {
+      background: var(--badge-airing);
+      color: #ffffff;
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      display: inline-block;
+      margin-top: 4px;
+    }
   </style>
 </head>
 
@@ -285,7 +372,7 @@
     <h1 id="t_mainTitle">Anime Ranking</h1>
 
     <p id="t_mainSubtitle">
-      Paste a list of titles, covers and scores will be fetched automatically.
+      Paste a list of anime titles, covers and scores will be fetched automatically.
     </p>
 
     <label for="titlesInput" id="t_inputLabel">
@@ -296,9 +383,9 @@
       id="titlesInput"
       rows="8"
       placeholder="Frieren: Beyond Journey's End
+Mushoku Tensei
 Steins;Gate
-Attack on Titan
-Bocchi the Rock!"
+Attack on Titan"
     ></textarea>
 
     <div class="controls">
@@ -357,6 +444,29 @@ Bocchi the Rock!"
     </div>
   </section>
 
+  <!-- Modal wyboru sezonu / wersji -->
+  <div id="disambiguationModal" class="modal-backdrop hidden">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="t_modalTitle" style="margin: 0;">Select Version / Season</h3>
+        <button id="closeModalBtn" class="secondary" style="padding: 6px 12px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; gap: 8px;">
+          <input
+            type="text"
+            id="modalSearchInput"
+            style="flex: 1; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-input); background: var(--surface); color: var(--text);"
+            placeholder="Search specific title..."
+          />
+          <button id="modalSearchBtn" class="secondary">Search</button>
+        </div>
+        <div id="modalLoading" class="muted" style="margin-top: 10px; display: none;">Loading candidates...</div>
+        <div id="candidateGrid" class="candidate-grid"></div>
+      </div>
+    </div>
+  </div>
+
   <script>
     (() => {
       const FLAG_PL = `
@@ -387,7 +497,7 @@ Bocchi the Rock!"
           themeDark: "🌙 Dark Theme",
           themeLight: "☀️ Light Theme",
           mainTitle: "Anime Ranking",
-          mainSubtitle: "Paste a list of titles, covers and scores will be fetched automatically.",
+          mainSubtitle: "Paste a list of anime titles, covers and scores will be fetched automatically.",
           inputLabel: "Anime titles — one title per line:",
           addBtn: "Add titles",
           fetchCoversBtn: "Fetch covers",
@@ -404,6 +514,12 @@ Bocchi the Rock!"
           resultTitle: "Your Ranking",
           infoLink: "Info",
           removeBtn: "Remove",
+          changeVersionBtn: "🔍 Version",
+          modalTitle: "Select Version / Season",
+          modalSearchPlaceholder: "Search specific title...",
+          modalSearchBtn: "Search",
+          modalLoading: "Loading matches...",
+          airingBadge: "Airing Now",
           emptyList: "List is empty.",
           titleCount: "Total titles: ",
           missingCovers: " • titles without cover: ",
@@ -411,7 +527,7 @@ Bocchi the Rock!"
           itemLoading: "Fetching cover and scores...",
           itemOk: "OK",
           itemError: "Failed to fetch cover",
-          pastePrompt: "Please paste a list of titles first.",
+          pastePrompt: "Please paste a list of anime titles first.",
           addedFetching: (n) => `Added ${n} titles. Fetching covers and scores...`,
           addedFetchingRunning: (n) => `Added ${n} titles. Cover fetch already running.`,
           noNewTitles: "No new titles added. All were duplicates or input was empty.",
@@ -444,7 +560,7 @@ Bocchi the Rock!"
           themeDark: "🌙 Ciemny motyw",
           themeLight: "☀️ Jasny motyw",
           mainTitle: "Ranking anime",
-          mainSubtitle: "Wklej listę tytułów, okładki pobiorą się automatycznie.",
+          mainSubtitle: "Wklej listę tytułów anime, okładki pobiorą się automatycznie.",
           inputLabel: "Tytuły anime — jeden tytuł na linię:",
           addBtn: "Dodaj tytuły",
           fetchCoversBtn: "Pobierz okładki",
@@ -461,6 +577,12 @@ Bocchi the Rock!"
           resultTitle: "Twój ranking",
           infoLink: "Info",
           removeBtn: "Usuń",
+          changeVersionBtn: "🔍 Wersja",
+          modalTitle: "Wybierz wersję / sezon",
+          modalSearchPlaceholder: "Wyszukaj konkretny tytuł...",
+          modalSearchBtn: "Szukaj",
+          modalLoading: "Wyszukiwanie pasujących części...",
+          airingBadge: "Emitowane teraz",
           emptyList: "Lista jest pusta.",
           titleCount: "Liczba tytułów: ",
           missingCovers: " • tytuły bez pobranej okładki: ",
@@ -468,7 +590,7 @@ Bocchi the Rock!"
           itemLoading: "Pobieranie okładki i ocen...",
           itemOk: "OK",
           itemError: "Nie pobrano okładki",
-          pastePrompt: "Wklej najpierw listę tytułów.",
+          pastePrompt: "Wklej najpierw listę tytułów anime.",
           addedFetching: (n) => `Dodano ${n} tytułów. Pobieranie okładek i ocen...`,
           addedFetchingRunning: (n) => `Dodano ${n} tytułów. Trwa już pobieranie okładek.`,
           noNewTitles: "Nie dodano nowych tytułów. Wszystko było już na liście albo lista była pusta.",
@@ -530,8 +652,17 @@ Bocchi the Rock!"
       const compareAgainBtn = document.getElementById('compareAgainBtn');
       const backFromResultBtn = document.getElementById('backFromResultBtn');
 
-      const STORAGE_KEY = 'manual-anime-sorter:entries:v5';
-      const COVER_CACHE_PREFIX = 'manual-anime-cover:v5:';
+      // Modal elements
+      const disambiguationModal = document.getElementById('disambiguationModal');
+      const closeModalBtn = document.getElementById('closeModalBtn');
+      const modalSearchInput = document.getElementById('modalSearchInput');
+      const modalSearchBtn = document.getElementById('modalSearchBtn');
+      const modalLoading = document.getElementById('modalLoading');
+      const candidateGrid = document.getElementById('candidateGrid');
+      let activeDisambiguationEntry = null;
+
+      const STORAGE_KEY = 'manual-anime-sorter:entries:v7';
+      const COVER_CACHE_PREFIX = 'manual-anime-cover:v7:';
       const THEME_KEY = 'manual-anime-sorter:theme:v1';
       const LANG_KEY = 'manual-anime-sorter:lang:v1';
 
@@ -583,6 +714,12 @@ Bocchi the Rock!"
       compareAgainBtn.addEventListener('click', startRanking);
       backFromResultBtn.addEventListener('click', showSetup);
 
+      closeModalBtn.addEventListener('click', closeDisambiguationModal);
+      modalSearchBtn.addEventListener('click', searchModalQuery);
+      modalSearchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') searchModalQuery();
+      });
+
       function initLanguage() {
         const saved = localStorage.getItem(LANG_KEY);
         currentLang = saved === 'pl' ? 'pl' : 'en';
@@ -614,6 +751,10 @@ Bocchi the Rock!"
         compareAgainBtn.textContent = t.compareAgainBtn;
         backFromResultBtn.textContent = t.backFromResultBtn;
         document.getElementById('t_resultTitle').textContent = t.resultTitle;
+
+        document.getElementById('t_modalTitle').textContent = t.modalTitle;
+        modalSearchInput.placeholder = t.modalSearchPlaceholder;
+        modalSearchBtn.textContent = t.modalSearchBtn;
 
         const isDark = document.body.classList.contains('dark');
         themeToggleBtn.textContent = isDark ? t.themeLight : t.themeDark;
@@ -884,15 +1025,22 @@ Bocchi the Rock!"
 
       entryList.addEventListener('click', (e) => {
         const removeBtn = e.target.closest('[data-remove-id]');
-        if (!removeBtn) return;
+        if (removeBtn) {
+          const id = removeBtn.dataset.removeId;
+          entries = entries.filter((entry) => entry.id !== id);
+          saveEntries();
+          renderEntries();
+          updateControls();
+          setStatus(translations[currentLang].titleRemoved);
+          return;
+        }
 
-        const id = removeBtn.dataset.removeId;
-        entries = entries.filter((entry) => entry.id !== id);
-
-        saveEntries();
-        renderEntries();
-        updateControls();
-        setStatus(translations[currentLang].titleRemoved);
+        const disambigBtn = e.target.closest('[data-disambig-id]');
+        if (disambigBtn) {
+          const id = disambigBtn.dataset.disambigId;
+          const entry = entries.find((item) => item.id === id);
+          if (entry) openDisambiguationModal(entry);
+        }
       });
 
       compareCards.addEventListener('click', (e) => {
@@ -932,7 +1080,8 @@ Bocchi the Rock!"
           matchedTitle: '',
           source: '',
           anilistScore: '',
-          kitsuScore: ''
+          kitsuScore: '',
+          candidates: []
         };
       }
 
@@ -1082,6 +1231,7 @@ Bocchi the Rock!"
             entry.source = result.source || '';
             entry.anilistScore = result.anilistScore || '';
             entry.kitsuScore = result.kitsuScore || '';
+            entry.candidates = result.candidates || [];
             entry.status = 'ok';
           } catch (err) {
             console.warn(`Failed to fetch cover: ${entry.name}`, err);
@@ -1116,27 +1266,31 @@ Bocchi the Rock!"
         let source = '';
         let anilistScore = '';
         let kitsuScore = '';
+        let candidates = [];
         const errors = [];
 
-        // 1. AniList (Okładka + Ocena)
+        // 1. AniList (Tylko Anime z priorytetem dla aktualnie emitowanych serii)
         try {
-          const anilistResult = await fetchAnilistData(title);
-          if (anilistResult.coverUrl) {
-            coverUrl = anilistResult.coverUrl;
+          const anilistResult = await fetchAnilistCandidates(title);
+          if (anilistResult.candidates && anilistResult.candidates.length) {
+            candidates = anilistResult.candidates;
+            const topCandidate = candidates[0];
+
+            coverUrl = topCandidate.coverUrl;
+            infoUrl = topCandidate.infoUrl;
+            matchedTitle = topCandidate.title;
             source = 'AniList';
+            if (topCandidate.score) anilistScore = topCandidate.score;
           }
-          if (anilistResult.infoUrl) infoUrl = anilistResult.infoUrl;
-          if (anilistResult.matchedTitle) matchedTitle = anilistResult.matchedTitle;
-          if (anilistResult.score) anilistScore = anilistResult.score;
         } catch (err) {
           errors.push('AniList: ' + (err?.message || err));
         }
 
         await sleep(200);
 
-        // 2. Kitsu (Okładka jeśli brak + Ocena)
+        // 2. Kitsu (Tylko Anime)
         try {
-          const kitsuResult = await fetchKitsuData(title);
+          const kitsuResult = await fetchKitsuData(matchedTitle || title);
           if (!coverUrl && kitsuResult.coverUrl) {
             coverUrl = kitsuResult.coverUrl;
             source = 'Kitsu';
@@ -1148,7 +1302,7 @@ Bocchi the Rock!"
           errors.push('Kitsu: ' + (err?.message || err));
         }
 
-        // 3. MyAnimeList (Jikan) jako zapasowa okładka
+        // 3. MyAnimeList / Jikan (Tylko Anime jako fallback)
         if (!coverUrl) {
           try {
             await sleep(250);
@@ -1174,14 +1328,15 @@ Bocchi the Rock!"
           matchedTitle: matchedTitle || title,
           source: source || (anilistScore ? 'AniList' : kitsuScore ? 'Kitsu' : ''),
           anilistScore,
-          kitsuScore
+          kitsuScore,
+          candidates
         };
 
         writeCoverCache(title, result);
         return result;
       }
 
-      async function fetchAnilistData(title) {
+      async function fetchAnilistCandidates(title) {
         const queries = getSearchQueries(title);
         let lastError = null;
 
@@ -1189,19 +1344,25 @@ Bocchi the Rock!"
           try {
             const query = `
               query ($search: String) {
-                Media(search: $search) {
-                  id
-                  siteUrl
-                  averageScore
-                  meanScore
-                  title {
-                    romaji
-                    english
-                    native
-                  }
-                  coverImage {
-                    large
-                    medium
+                Page(page: 1, perPage: 8) {
+                  media(search: $search, type: ANIME, sort: [SEARCH_MATCH, POPULARITY_DESC]) {
+                    id
+                    siteUrl
+                    status
+                    seasonYear
+                    format
+                    episodes
+                    averageScore
+                    meanScore
+                    title {
+                      romaji
+                      english
+                      native
+                    }
+                    coverImage {
+                      large
+                      medium
+                    }
                   }
                 }
               }
@@ -1222,24 +1383,32 @@ Bocchi the Rock!"
             if (!res.ok) continue;
 
             const json = await res.json();
-            const media = json?.data?.Media;
+            const mediaList = json?.data?.Page?.media || [];
 
-            if (!media) continue;
+            if (!mediaList.length) continue;
 
-            const coverUrl = media.coverImage?.large || media.coverImage?.medium || '';
-            const scoreVal = media.averageScore || media.meanScore;
-            const score = scoreVal ? `${scoreVal}%` : '';
+            const mapped = mediaList.map((m) => {
+              const scoreVal = m.averageScore || m.meanScore;
+              return {
+                id: m.id,
+                title: m.title?.romaji || m.title?.english || m.title?.native || title,
+                englishTitle: m.title?.english || '',
+                coverUrl: m.coverImage?.large || m.coverImage?.medium || '',
+                infoUrl: m.siteUrl || anilistSearchUrl(title),
+                status: m.status,
+                year: m.seasonYear || '',
+                format: m.format || 'TV',
+                score: scoreVal ? `${scoreVal}%` : ''
+              };
+            });
 
-            return {
-              coverUrl,
-              infoUrl: media.siteUrl || anilistSearchUrl(title),
-              matchedTitle:
-                media.title?.romaji ||
-                media.title?.english ||
-                media.title?.native ||
-                title,
-              score
-            };
+            mapped.sort((a, b) => {
+              if (a.status === 'RELEASING' && b.status !== 'RELEASING') return -1;
+              if (b.status === 'RELEASING' && a.status !== 'RELEASING') return 1;
+              return 0;
+            });
+
+            return { candidates: mapped };
           } catch (err) {
             lastError = err;
           }
@@ -1307,61 +1476,6 @@ Bocchi the Rock!"
           }
         }
 
-        for (const q of queries.slice(0, 3)) {
-          try {
-            const params = new URLSearchParams({
-              'filter[text]': q,
-              'page[limit]': '3'
-            });
-
-            const url = `https://kitsu.io/api/edge/manga?${params.toString()}`;
-            const res = await fetchWithTimeout(url, {
-              headers: { 'Accept': 'application/vnd.api+json' }
-            });
-
-            if (!res.ok) continue;
-
-            const json = await res.json();
-            const list = Array.isArray(json.data) ? json.data : [];
-            if (!list.length) continue;
-
-            const item = list[0];
-            const attrs = item.attributes || {};
-
-            const coverUrl =
-              attrs.posterImage?.original ||
-              attrs.posterImage?.large ||
-              attrs.posterImage?.medium ||
-              attrs.posterImage?.small ||
-              attrs.posterImage?.tiny ||
-              '';
-
-            const matchedTitle =
-              attrs.canonicalTitle ||
-              attrs.titles?.en ||
-              attrs.titles?.en_jp ||
-              title;
-
-            const infoUrl = attrs.slug
-              ? `https://kitsu.io/manga/${attrs.slug}`
-              : `https://kitsu.io/manga?text=${encodeURIComponent(title)}`;
-
-            let score = '';
-            if (attrs.averageRating && !isNaN(attrs.averageRating)) {
-              score = `${Math.round(Number(attrs.averageRating))}%`;
-            }
-
-            return {
-              coverUrl,
-              infoUrl,
-              matchedTitle,
-              score
-            };
-          } catch (err) {
-            lastError = err;
-          }
-        }
-
         throw lastError || new Error('No results on Kitsu.');
       }
 
@@ -1387,7 +1501,6 @@ Bocchi the Rock!"
       async function fetchJikanCover(title) {
         const queries = getSearchQueries(title);
         let bestItem = null;
-        let isManga = false;
 
         for (const q of queries.slice(0, 2)) {
           const url = `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(q)}&limit=5`;
@@ -1403,22 +1516,6 @@ Bocchi the Rock!"
         }
 
         if (!bestItem) {
-          for (const q of queries.slice(0, 2)) {
-            const url = `https://api.jikan.moe/v4/manga?q=${encodeURIComponent(q)}&limit=5`;
-            const data = await fetchJikanWithRetry(url);
-            if (data && data.length) {
-              const item = chooseBestJikanResult(data, title);
-              if (item) {
-                bestItem = item;
-                isManga = true;
-                break;
-              }
-            }
-            await sleep(350);
-          }
-        }
-
-        if (!bestItem) {
           throw new Error('No results on MyAnimeList.');
         }
 
@@ -1428,7 +1525,7 @@ Bocchi the Rock!"
           coverUrl,
           infoUrl: bestItem.url || malSearchUrl(title),
           matchedTitle: bestItem.title || title,
-          source: isManga ? 'MyAnimeList (manga)' : 'MyAnimeList'
+          source: 'MyAnimeList'
         };
       }
 
@@ -1444,50 +1541,20 @@ Bocchi the Rock!"
 
       function chooseBestJikanResult(list, query) {
         if (!list || !list.length) return null;
-
         const normalizedQuery = normalizeTitle(query);
 
-        const getTitles = (item) => {
-          const titles = [
-            item.title,
-            item.title_english,
-            item.title_romaji,
-            item.title_japanese
-          ];
+        const getTitles = (item) => [
+          item.title,
+          item.title_english,
+          item.title_romaji,
+          item.title_japanese
+        ].filter(Boolean);
 
-          if (Array.isArray(item.titles)) {
-            for (const titleObj of item.titles) {
-              if (titleObj && titleObj.title) {
-                titles.push(titleObj.title);
-              }
-            }
-          }
-
-          return titles.filter(Boolean);
-        };
-
-        const exactMatch = list.find((item) =>
-          getTitles(item).some((t) => normalizeTitle(t) === normalizedQuery)
+        return (
+          list.find((item) => getTitles(item).some((t) => normalizeTitle(t) === normalizedQuery)) ||
+          list.find((item) => getTitles(item).some((t) => normalizeTitle(t).startsWith(normalizedQuery))) ||
+          list[0]
         );
-        if (exactMatch) return exactMatch;
-
-        const startsWithMatch = list.find((item) =>
-          getTitles(item).some((t) => {
-            const nt = normalizeTitle(t);
-            return nt.startsWith(normalizedQuery) || normalizedQuery.startsWith(nt);
-          })
-        );
-        if (startsWithMatch) return startsWithMatch;
-
-        const includesMatch = list.find((item) =>
-          getTitles(item).some((t) => {
-            const nt = normalizeTitle(t);
-            return nt.includes(normalizedQuery) || normalizedQuery.includes(nt);
-          })
-        );
-        if (includesMatch) return includesMatch;
-
-        return list[0];
       }
 
       async function fetchWithTimeout(url, options = {}, timeout = 15000) {
@@ -1504,6 +1571,94 @@ Bocchi the Rock!"
         }
       }
 
+      /* Modal Disambiguation Handlers */
+      async function openDisambiguationModal(entry) {
+        activeDisambiguationEntry = entry;
+        modalSearchInput.value = entry.name;
+        disambiguationModal.classList.remove('hidden');
+        renderCandidates(entry.candidates || []);
+
+        if (!entry.candidates || !entry.candidates.length) {
+          await searchModalQuery();
+        }
+      }
+
+      function closeDisambiguationModal() {
+        activeDisambiguationEntry = null;
+        disambiguationModal.classList.add('hidden');
+      }
+
+      async function searchModalQuery() {
+        const q = modalSearchInput.value.trim();
+        if (!q) return;
+
+        modalLoading.style.display = 'block';
+        modalLoading.textContent = translations[currentLang].modalLoading;
+        candidateGrid.innerHTML = '';
+
+        try {
+          const res = await fetchAnilistCandidates(q);
+          renderCandidates(res.candidates || []);
+        } catch (e) {
+          candidateGrid.innerHTML = `<div class="muted">No results found.</div>`;
+        } finally {
+          modalLoading.style.display = 'none';
+        }
+      }
+
+      function renderCandidates(list) {
+        const t = translations[currentLang];
+        candidateGrid.innerHTML = '';
+
+        if (!list || !list.length) {
+          candidateGrid.innerHTML = `<div class="muted">No candidates available. Try searching above.</div>`;
+          return;
+        }
+
+        list.forEach((candidate) => {
+          const card = document.createElement('div');
+          card.className = 'candidate-card';
+
+          const isAiring = candidate.status === 'RELEASING';
+          const badgeHtml = isAiring ? `<span class="badge-airing">${t.airingBadge}</span>` : '';
+          const metaYearFormat = [candidate.year, candidate.format].filter(Boolean).join(' • ');
+
+          card.innerHTML = `
+            <img src="${escapeHtml(candidate.coverUrl || getPlaceholderCover())}" alt="" />
+            <div style="flex: 1; font-size: 13px;">
+              <strong style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${escapeHtml(candidate.title)}</strong>
+              <div class="muted" style="margin-top: 2px;">${escapeHtml(metaYearFormat)}</div>
+              ${candidate.score ? `<div class="muted">★ ${escapeHtml(candidate.score)}</div>` : ''}
+              ${badgeHtml}
+            </div>
+          `;
+
+          card.addEventListener('click', async () => {
+            if (!activeDisambiguationEntry) return;
+
+            activeDisambiguationEntry.coverUrl = candidate.coverUrl;
+            activeDisambiguationEntry.matchedTitle = candidate.title;
+            activeDisambiguationEntry.anilistScore = candidate.score || '';
+            activeDisambiguationEntry.infoUrl = candidate.infoUrl;
+            activeDisambiguationEntry.source = 'AniList';
+            activeDisambiguationEntry.status = 'ok';
+
+            try {
+              const kitsuRes = await fetchKitsuData(candidate.title);
+              if (kitsuRes && kitsuRes.score) {
+                activeDisambiguationEntry.kitsuScore = kitsuRes.score;
+              }
+            } catch (e) {}
+
+            saveEntries();
+            renderEntries();
+            closeDisambiguationModal();
+          });
+
+          candidateGrid.appendChild(card);
+        });
+      }
+
       function coverCacheKey(title) {
         return COVER_CACHE_PREFIX + normalizeTitle(title);
       }
@@ -1512,13 +1667,8 @@ Bocchi the Rock!"
         try {
           const raw = localStorage.getItem(coverCacheKey(title));
           if (!raw) return null;
-
-          const parsed = JSON.parse(raw);
-          if (!parsed || !parsed.coverUrl) return null;
-
-          return parsed;
+          return JSON.parse(raw);
         } catch (err) {
-          console.warn('Error reading cover cache:', err);
           return null;
         }
       }
@@ -1526,9 +1676,7 @@ Bocchi the Rock!"
       function writeCoverCache(title, data) {
         try {
           localStorage.setItem(coverCacheKey(title), JSON.stringify(data));
-        } catch (err) {
-          console.warn('Error saving cover cache:', err);
-        }
+        } catch (err) {}
       }
 
       function clearCoverCache() {
@@ -1539,22 +1687,17 @@ Bocchi the Rock!"
         }
 
         const keysToRemove = [];
-
         try {
           for (let i = 0; i < localStorage.length; i += 1) {
             const key = localStorage.key(i);
-
             if (key && key.startsWith(COVER_CACHE_PREFIX)) {
               keysToRemove.push(key);
             }
           }
-
           for (const key of keysToRemove) {
             localStorage.removeItem(key);
           }
-        } catch (err) {
-          console.warn('Error clearing cover cache:', err);
-        }
+        } catch (err) {}
 
         entries = entries.map((entry) => ({
           ...entry,
@@ -1564,13 +1707,13 @@ Bocchi the Rock!"
           source: '',
           anilistScore: '',
           kitsuScore: '',
+          candidates: [],
           infoUrl: malSearchUrl(entry.name)
         }));
 
         saveEntries();
         renderEntries();
         updateControls();
-
         setStatus(t.cacheCleared(keysToRemove.length));
       }
 
@@ -1580,11 +1723,8 @@ Bocchi the Rock!"
             ...entry,
             status: entry.status === 'loading' ? 'pending' : entry.status
           }));
-
           localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
-        } catch (err) {
-          console.warn('Error saving title list:', err);
-        }
+        } catch (err) {}
       }
 
       function loadEntries() {
@@ -1601,23 +1741,15 @@ Bocchi the Rock!"
               id: String(item.id || uid()),
               name: item.name.trim(),
               coverUrl: typeof item.coverUrl === 'string' ? item.coverUrl : '',
-              infoUrl:
-                typeof item.infoUrl === 'string' && item.infoUrl
-                  ? item.infoUrl
-                  : malSearchUrl(item.name.trim()),
-              status:
-                item.status === 'ok'
-                  ? 'ok'
-                  : item.status === 'error'
-                    ? 'error'
-                    : 'pending',
+              infoUrl: typeof item.infoUrl === 'string' && item.infoUrl ? item.infoUrl : malSearchUrl(item.name.trim()),
+              status: item.status === 'ok' ? 'ok' : item.status === 'error' ? 'error' : 'pending',
               matchedTitle: typeof item.matchedTitle === 'string' ? item.matchedTitle : '',
               source: typeof item.source === 'string' ? item.source : '',
-              anilistScore: typeof item.anilistScore === 'string' ? item.anilistScore : (item.scoreSource === 'AniList' ? item.score : ''),
-              kitsuScore: typeof item.kitsuScore === 'string' ? item.kitsuScore : (item.scoreSource === 'Kitsu' ? item.score : '')
+              anilistScore: typeof item.anilistScore === 'string' ? item.anilistScore : '',
+              kitsuScore: typeof item.kitsuScore === 'string' ? item.kitsuScore : '',
+              candidates: Array.isArray(item.candidates) ? item.candidates : []
             }));
         } catch (err) {
-          console.warn('Error loading title list:', err);
           entries = [];
         }
       }
@@ -1630,11 +1762,16 @@ Bocchi the Rock!"
           const row = document.createElement('div');
           row.className = 'entry-item';
 
+          const matchedLabel = entry.matchedTitle && normalizeTitle(entry.matchedTitle) !== normalizeTitle(entry.name)
+            ? `<div class="muted" style="font-size: 12px;">${t.matched}${escapeHtml(entry.matchedTitle)}</div>`
+            : '';
+
           row.innerHTML = `
             <img class="entry-thumb" src="${escapeHtml(entry.coverUrl || getPlaceholderCover())}" alt="" />
 
-            <div>
-              <div class="entry-title">${escapeHtml(entry.name)}</div>
+            <div style="flex: 1; min-width: 0;">
+              <div class="entry-title" style="word-break: break-word;">${escapeHtml(entry.name)}</div>
+              ${matchedLabel}
               <div class="muted">
                 ${escapeHtml(statusLabel(entry.status))}
                 ${entry.source ? ' • ' + escapeHtml(entry.source) : ''}
@@ -1642,18 +1779,18 @@ Bocchi the Rock!"
             </div>
 
             <div class="entry-actions">
+              <button class="secondary" data-disambig-id="${entry.id}" style="font-size: 13px; padding: 6px 10px;">${escapeHtml(t.changeVersionBtn)}</button>
               <a
                 href="${escapeHtml(entry.infoUrl || malSearchUrl(entry.name))}"
                 target="_blank"
                 rel="noopener"
+                style="font-size: 14px;"
               >${escapeHtml(t.infoLink)}</a>
-
-              <button class="danger" data-remove-id="${entry.id}">${escapeHtml(t.removeBtn)}</button>
+              <button class="danger" data-remove-id="${entry.id}" style="font-size: 13px; padding: 6px 10px;">${escapeHtml(t.removeBtn)}</button>
             </div>
           `;
 
           const img = row.querySelector('img');
-
           img.addEventListener('error', () => {
             img.src = getPlaceholderCover();
           });
@@ -1670,7 +1807,6 @@ Bocchi the Rock!"
           ok: t.itemOk,
           error: t.itemError
         };
-
         return labels[status] || status;
       }
 
@@ -1697,11 +1833,9 @@ Bocchi the Rock!"
       function clearList() {
         const t = translations[currentLang];
         if (!entries.length) return;
-
         if (!confirm(t.clearConfirm)) return;
 
         entries = [];
-
         saveEntries();
         renderEntries();
         updateControls();
@@ -1713,7 +1847,6 @@ Bocchi the Rock!"
 
         compareCancelled = false;
         compareCount = 0;
-
         setError('');
         setStatus('');
         progressBar.style.width = '0%';
@@ -1737,25 +1870,19 @@ Bocchi the Rock!"
             showSetup();
             return;
           }
-
-          console.error(err);
-
           hideSection(compareView);
           showSection(setup);
-
           setError('Error during comparison: ' + (err?.message || err));
         }
       }
 
       function cancelCompare() {
         compareCancelled = true;
-
         if (resolveChoice) {
           const resolver = resolveChoice;
           resolveChoice = null;
           resolver(null);
         }
-
         showSetup();
       }
 
@@ -1763,7 +1890,6 @@ Bocchi the Rock!"
         showSection(setup);
         hideSection(compareView);
         hideSection(resultView);
-
         setStatus('');
         setError('');
         updateControls();
@@ -1771,31 +1897,22 @@ Bocchi the Rock!"
 
       async function mergeSort(clusters) {
         if (clusters.length <= 1) return clusters;
-
         const middle = Math.floor(clusters.length / 2);
-
         const left = await mergeSort(clusters.slice(0, middle));
         const right = await mergeSort(clusters.slice(middle));
-
         return merge(left, right);
       }
 
       async function merge(left, right) {
         const result = [];
-
         let i = 0;
         let j = 0;
 
         while (i < left.length && j < right.length) {
-          if (compareCancelled) {
-            throw new CancelledError();
-          }
+          if (compareCancelled) throw new CancelledError();
 
           const choice = await askCompare(left[i][0], right[j][0]);
-
-          if (!choice) {
-            throw new CancelledError();
-          }
+          if (!choice) throw new CancelledError();
 
           if (choice === 'tie') {
             result.push([...left[i], ...right[j]]);
@@ -1817,7 +1934,6 @@ Bocchi the Rock!"
         const t = translations[currentLang];
         currentA = a;
         currentB = b;
-
         compareCount += 1;
 
         const estimatedTotal = Math.max(1, Math.round(entries.length * Math.log2(entries.length)));
@@ -1839,8 +1955,7 @@ Bocchi the Rock!"
         card.dataset.id = entry.id;
 
         const matched =
-          entry.matchedTitle &&
-          normalizeTitle(entry.matchedTitle) !== normalizeTitle(entry.name)
+          entry.matchedTitle && normalizeTitle(entry.matchedTitle) !== normalizeTitle(entry.name)
             ? `${t.matched}${escapeHtml(entry.matchedTitle)}<br />`
             : '';
 
@@ -1858,7 +1973,6 @@ Bocchi the Rock!"
         `;
 
         const img = card.querySelector('img');
-
         img.addEventListener('error', () => {
           img.src = getPlaceholderCover();
         });
@@ -1888,9 +2002,7 @@ Bocchi the Rock!"
 
             row.innerHTML = `
               <div class="rank-number">${rankForThisCluster}.</div>
-
               <img src="${escapeHtml(entry.coverUrl || getPlaceholderCover())}" alt="" />
-
               <div>
                 <strong>${escapeHtml(entry.name)}</strong>
                 <div class="muted">
@@ -1904,7 +2016,6 @@ Bocchi the Rock!"
             `;
 
             const img = row.querySelector('img');
-
             img.addEventListener('error', () => {
               img.src = getPlaceholderCover();
             });
@@ -1917,7 +2028,7 @@ Bocchi the Rock!"
       }
 
       function malSearchUrl(title) {
-        return `https://myanimelist.net/search/all?q=${encodeURIComponent(title)}`;
+        return `https://myanimelist.net/anime.php?q=${encodeURIComponent(title)}`;
       }
 
       function anilistSearchUrl(title) {
