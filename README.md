@@ -1,49 +1,38 @@
-# anime-sorter
+# Anime Sorter (sort.moe)
 
-A client-side pairwise anime and manga ranking tool. Allows users to run through an internal merge sort of their custom list of titles to produce a final ordered ranking.
+A fast, lightweight, and client-side web application to sort, rank, and create tier lists of anime series through head-to-head comparisons. 
 
-### Features
+Built as a single-file application with zero backend requirements, automated metadata/cover retrieval from **AniList** and **Kitsu**, and one-click ranking export.
 
-* Entirely client-side, no backend server or database setup required.
-* Merge sort algorithm ($O(n \log n)$) to minimize the number of user comparisons.
-* Support for tie choices to allow shared ranking positions.
-* Automatic cover art and community rating retrieval via AniList GraphQL and Kitsu APIs.
-* High-resolution PNG image generation of the final ranking card.
-* Direct image upload to Litterbox (Catbox.moe) with automatic clipboard copy.
-* Dark / Light mode toggle with local storage persistence.
-* Multi-language support (English / Polish) with SVG flag toggling.
-* Local storage cache for fetched artwork and query metadata.
+---
 
-### How to Use
+## Features
 
-https://sort.moe/
+* **$O(n \log n)$ Merge Sort Engine:** Minimizes the number of 1v1 comparisons needed to generate an exact, mathematically consistent ranking. Includes dedicated **Tie** support for equal matchups.
+* **Smart Cover & Metadata Fetching:**
+  * Auto-fetches official artwork and community ratings from **AniList** (GraphQL) and **Kitsu API**.
+  * **Airing Priority:** Automatically selects currently airing seasons (`RELEASING` / `CURRENT`) by default when generic titles are entered.
+  * **Filters Unreleased Shows:** Automatically filters out upcoming/unreleased titles to prevent invalid matchups.
+* **Season / Version Disambiguation:** Manual season selector modal (**🔍 Season**) with an integrated search tool to quickly switch between seasons, OVAs, or spin-offs.
+* **Side-by-Side Community Ratings:** Displays verified community scores directly on final ranking cards (`AniList: ★ X% • Kitsu: ★ Y%`).
+* **High-Res PNG Export & Image Sharing:**
+  * **Export to PNG:** Renders high-resolution ranking cards locally via `html2canvas` with built-in Base64 cross-origin proxying to prevent CORS tainted canvas issues across all modern browsers.
+  * **Instant Upload to Litterbox (Catbox):** 1-click cloud upload with 72h temporary hosting and automatic link copying to the clipboard.
+* **Bilingual UI & Themes:** Instant toggle between English and Polish (`EN` / `PL`) and Dark / Light themes.
+* **Zero Backend & Offline-Ready:** Entirely client-side with persistent `localStorage` caching.
 
-1. Paste a list of anime or manga titles into the input area (one title per line).
-2. Click **Fetch covers** to resolve covers and community scores.
-3. Click **Start sorting** and select preferred titles (or Ties) until the progress bar reaches 100%.
-4. Review the final ranking and choose to either download the result as a `.png` file or upload it directly to Litterbox for sharing.
+---
 
-### Running & Deployment
+## Live Demo
 
-This project consists of a single standalone `index.html` file and requires no build pipeline, dependencies, or server setup.
+Try the live version at: **[https://sort.moe](https://sort.moe)** *(or via GitHub Pages)*
 
-* **Running Locally:**
-  Simply download or save `index.html` to your computer and double-click to open it in any modern web browser.
+---
 
-* **Hosting on GitHub Pages (Optional):**
-  1. Go to repository **Settings** -> **Pages**.
-  2. Under **Branch**, select `main` (or `master`) and folder `/ (root)`.
-  3. Click **Save**.
+## How to Run Locally
 
-### Built With
+Because the application is completely self-contained in a single file, you do not need Node.js, Docker, or build tools:
 
-* Vanilla HTML5 / CSS3 / JavaScript (ES6+)
-* [html2canvas](https://html2canvas.hertzen.com/) — Canvas screenshot rendering.
-* [AniList API](https://anilist.gitbook.io/anilist-apiv2-docs/) — GraphQL metadata and score queries.
-* [Kitsu API](https://kitsu.docs.apiary.io/) — Fallback metadata queries.
-* [Jikan API](https://jikan.moe/) — MyAnimeList search resolution.
-* [Litterbox](https://litterbox.catbox.moe/) — Temporary image hosting.
-
-### Credits
-
-* [execfera/charasort](https://github.com/execfera/charasort) for the original sorter inspiration.
+1. Clone or download this repository:
+   ```bash
+   git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git)
