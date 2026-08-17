@@ -16,6 +16,8 @@ A client-side pairwise anime and manga ranking tool. Allows users to run through
 
 ### How to Use
 
+https://sort.moe/
+
 1. Paste a list of anime or manga titles into the input area (one title per line).
 2. Click **Fetch covers** to resolve covers and community scores.
 3. Click **Start sorting** and select preferred titles (or Ties) until the progress bar reaches 100%.
