@@ -18,7 +18,6 @@ Built as a single-file application with zero backend requirements, automated met
 * **High-Res PNG Export & Image Sharing:**
   * **Export to PNG:** Renders high-resolution ranking cards locally via `html2canvas` with built-in Base64 cross-origin proxying to prevent CORS tainted canvas issues across all modern browsers.
   * **Instant Upload to Litterbox (Catbox):** 1-click cloud upload with 72h temporary hosting and automatic link copying to the clipboard.
-* **Bilingual UI & Themes:** Instant toggle between English and Polish (`EN` / `PL`) and Dark / Light themes.
 * **Zero Backend & Offline-Ready:** Entirely client-side with persistent `localStorage` caching.
 
 ---
@@ -31,8 +30,4 @@ Try the live version at: **[https://sort.moe](https://sort.moe)**
 
 ## How to Run Locally
 
-Because the application is completely self-contained in a single file, you do not need Node.js, Docker, or build tools:
-
-1. Clone or download this repository:
-   ```bash
-   git clone [https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git](https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git)
+Download index.html and run it in any browser.
