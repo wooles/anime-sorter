@@ -76,6 +76,33 @@
       margin-bottom: 8px;
     }
 
+    .import-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .import-box select,
+    .import-box input {
+      padding: 10px 12px;
+      font-size: 15px;
+      border-radius: 8px;
+      border: 1px solid var(--border-input);
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .import-box input {
+      flex: 1;
+      min-width: 200px;
+    }
+
     textarea {
       width: 100%;
       box-sizing: border-box;
@@ -389,8 +416,20 @@
     <h1 id="t_mainTitle">Anime Ranking</h1>
 
     <p id="t_mainSubtitle">
-      Paste a list of anime titles, covers and scores will be fetched automatically.
+      Paste a list of anime titles or import your watchlist directly from MyAnimeList, AniList, or Kitsu.
     </p>
+
+    <!-- Unified Watchlist Import Box -->
+    <div class="import-box">
+      <strong id="t_importBoxLabel">Import Watchlist:</strong>
+      <select id="importServiceSelect">
+        <option value="mal">MyAnimeList</option>
+        <option value="anilist">AniList</option>
+        <option value="kitsu">Kitsu</option>
+      </select>
+      <input type="text" id="usernameInput" placeholder="Enter username..." />
+      <button id="importWatchlistBtn" class="secondary">📥 Import Watching</button>
+    </div>
 
     <label for="titlesInput" id="t_inputLabel">
       Anime titles — one title per line:
@@ -514,7 +553,14 @@ Made in Abyss"
           themeDark: "🌙 Dark Theme",
           themeLight: "☀️ Light Theme",
           mainTitle: "Anime Ranking",
-          mainSubtitle: "Paste a list of anime titles, covers and scores will be fetched automatically.",
+          mainSubtitle: "Paste a list of anime titles or import your watchlist directly from MyAnimeList, AniList, or Kitsu.",
+          importBoxLabel: "Import Watchlist:",
+          usernamePlaceholder: "Enter username...",
+          importWatchlistBtn: "📥 Import Watching",
+          userPrompt: "Please enter a valid username.",
+          importLoading: (srv) => `⏳ Fetching watching list from ${srv}...`,
+          importSuccess: (n, srv, u) => `Successfully imported ${n} anime from ${srv} user "${u}". Fetching artwork...`,
+          importError: (srv) => `Failed to fetch anime list from ${srv}. Make sure the profile exists and the watchlist is public.`,
           inputLabel: "Anime titles — one title per line:",
           addBtn: "Add titles",
           fetchCoversBtn: "Fetch covers",
@@ -579,7 +625,14 @@ Made in Abyss"
           themeDark: "🌙 Ciemny motyw",
           themeLight: "☀️ Jasny motyw",
           mainTitle: "Ranking anime",
-          mainSubtitle: "Wklej listę tytułów anime, okładki pobiorą się automatycznie.",
+          mainSubtitle: "Wklej listę tytułów anime lub pobierz je bezpośrednio ze swojego profilu na MyAnimeList, AniList lub Kitsu.",
+          importBoxLabel: "Import listy:",
+          usernamePlaceholder: "Wpisz nazwę użytkownika...",
+          importWatchlistBtn: "📥 Pobierz oglądane",
+          userPrompt: "Wpisz poprawną nazwę użytkownika.",
+          importLoading: (srv) => `⏳ Pobieranie aktualnie oglądanych anime z ${srv}...`,
+          importSuccess: (n, srv, u) => `Pobrano ${n} anime użytkownika "${u}" z serwisu ${srv}. Trwa pobieranie okładek...`,
+          importError: (srv) => `Nie udało się pobrać listy z ${srv}. Upewnij się, że profil istnieje i lista anime jest publiczna.`,
           inputLabel: "Tytuły anime — jeden tytuł na linię:",
           addBtn: "Dodaj tytuły",
           fetchCoversBtn: "Pobierz okładki",
@@ -588,7 +641,7 @@ Made in Abyss"
           startBtn: "Rozpocznij porównywanie",
           compareTitle: "Które anime jest lepsze?",
           cancelCompareBtn: "Przerwij i wróć do listy",
-          tieBtn: "🤝 Remis (oba tak广泛 dobre)",
+          tieBtn: "🤝 Remis (oba tak samo dobre)",
           exportImageBtn: "📸 Pobierz ranking jako obraz (PNG)",
           uploadLitterboxBtn: "☁️ Wrzuć na Litterbox (link)",
           compareAgainBtn: "Porównaj jeszcze raz",
@@ -641,6 +694,9 @@ Made in Abyss"
       };
 
       const titlesInput = document.getElementById('titlesInput');
+      const importServiceSelect = document.getElementById('importServiceSelect');
+      const usernameInput = document.getElementById('usernameInput');
+      const importWatchlistBtn = document.getElementById('importWatchlistBtn');
       const addBtn = document.getElementById('addBtn');
       const fetchCoversBtn = document.getElementById('fetchCoversBtn');
       const clearCoverCacheBtn = document.getElementById('clearCoverCacheBtn');
@@ -682,8 +738,8 @@ Made in Abyss"
       const candidateGrid = document.getElementById('candidateGrid');
       let activeDisambiguationEntry = null;
 
-      const STORAGE_KEY = 'manual-anime-sorter:entries:v17';
-      const COVER_CACHE_PREFIX = 'manual-anime-cover:v17:';
+      const STORAGE_KEY = 'manual-anime-sorter:entries:v19';
+      const COVER_CACHE_PREFIX = 'manual-anime-cover:v19:';
       const THEME_KEY = 'manual-anime-sorter:theme:v1';
       const LANG_KEY = 'manual-anime-sorter:lang:v1';
 
@@ -737,6 +793,10 @@ Made in Abyss"
 
       langToggleBtn.addEventListener('click', toggleLanguage);
       themeToggleBtn.addEventListener('click', toggleTheme);
+      importWatchlistBtn.addEventListener('click', importUserWatchlist);
+      usernameInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') importUserWatchlist();
+      });
       addBtn.addEventListener('click', addTitles);
       fetchCoversBtn.addEventListener('click', fetchAllCovers);
       clearCoverCacheBtn.addEventListener('click', clearCoverCache);
@@ -770,6 +830,10 @@ Made in Abyss"
         langToggleBtn.innerHTML = t.langBtnHtml;
         document.getElementById('t_mainTitle').textContent = t.mainTitle;
         document.getElementById('t_mainSubtitle').textContent = t.mainSubtitle;
+        document.getElementById('t_importBoxLabel').textContent = t.importBoxLabel;
+        usernameInput.placeholder = t.usernamePlaceholder;
+        importWatchlistBtn.textContent = t.importWatchlistBtn;
+
         document.getElementById('t_inputLabel').textContent = t.inputLabel;
         addBtn.textContent = t.addBtn;
         fetchCoversBtn.textContent = t.fetchCoversBtn;
@@ -831,6 +895,164 @@ Made in Abyss"
         const newTheme = isDark ? 'light' : 'dark';
         localStorage.setItem(THEME_KEY, newTheme);
         applyTheme(newTheme);
+      }
+
+      /* Unified Watchlist Importer (MAL, AniList, Kitsu) */
+      async function importUserWatchlist() {
+        const t = translations[currentLang];
+        const service = importServiceSelect.value;
+        const username = usernameInput.value.trim();
+
+        if (!username) {
+          setStatus(t.userPrompt);
+          return;
+        }
+
+        const serviceNames = { mal: 'MyAnimeList', anilist: 'AniList', kitsu: 'Kitsu' };
+        const serviceName = serviceNames[service] || service;
+
+        setError('');
+        setStatus(t.importLoading(serviceName));
+        importWatchlistBtn.disabled = true;
+
+        let titles = [];
+
+        try {
+          if (service === 'anilist') {
+            titles = await fetchAnilistWatching(username);
+          } else if (service === 'kitsu') {
+            titles = await fetchKitsuWatching(username);
+          } else {
+            titles = await fetchMalWatching(username);
+          }
+        } catch (err) {
+          console.error(`Import error (${service}):`, err);
+        }
+
+        importWatchlistBtn.disabled = false;
+
+        if (!titles || !titles.length) {
+          setError(t.importError(serviceName));
+          setStatus('');
+          return;
+        }
+
+        let added = 0;
+        for (const name of titles) {
+          const isDuplicate = entries.some(
+            (entry) => normalizeTitle(entry.name) === normalizeTitle(name)
+          );
+          if (!isDuplicate) {
+            entries.push(createEntry(name));
+            added += 1;
+          }
+        }
+
+        saveEntries();
+        renderEntries();
+        updateControls();
+
+        if (added > 0) {
+          setStatus(t.importSuccess(added, serviceName, username));
+          fetchAllCovers();
+        } else {
+          setStatus(t.noNewTitles);
+        }
+      }
+
+      async function fetchAnilistWatching(username) {
+        const query = `
+          query ($userName: String) {
+            MediaListCollection(userName: $userName, type: ANIME, status: CURRENT) {
+              lists {
+                entries {
+                  media {
+                    title {
+                      romaji
+                      english
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
+
+        const res = await fetchWithTimeout('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+          body: JSON.stringify({ query, variables: { userName: username } })
+        }, 9000);
+
+        if (!res.ok) throw new Error('AniList request failed.');
+        const json = await res.json();
+        const lists = json?.data?.MediaListCollection?.lists || [];
+        const titles = [];
+
+        for (const list of lists) {
+          for (const entry of (list.entries || [])) {
+            const title = entry.media?.title?.romaji || entry.media?.title?.english;
+            if (title) titles.push(title);
+          }
+        }
+        return titles;
+      }
+
+      async function fetchKitsuWatching(username) {
+        const userRes = await fetchWithTimeout(`https://kitsu.io/api/edge/users?filter[name]=${encodeURIComponent(username)}`, {
+          headers: { 'Accept': 'application/vnd.api+json' }
+        }, 9000);
+
+        if (!userRes.ok) throw new Error('Kitsu user request failed.');
+        const userJson = await userRes.json();
+        const userId = userJson?.data?.[0]?.id;
+        if (!userId) throw new Error('Kitsu user not found.');
+
+        const entriesUrl = `https://kitsu.io/api/edge/library-entries?filter[userId]=${userId}&filter[status]=current&filter[kind]=anime&include=anime&page[limit]=50`;
+        const entriesRes = await fetchWithTimeout(entriesUrl, {
+          headers: { 'Accept': 'application/vnd.api+json' }
+        }, 9000);
+
+        if (!entriesRes.ok) throw new Error('Kitsu library request failed.');
+        const entriesJson = await entriesRes.json();
+        const included = entriesJson?.included || [];
+        const animeMap = {};
+
+        for (const inc of included) {
+          if (inc.type === 'anime') {
+            animeMap[inc.id] = inc.attributes?.canonicalTitle || inc.attributes?.titles?.en || inc.attributes?.titles?.en_jp;
+          }
+        }
+
+        const titles = [];
+        for (const item of (entriesJson.data || [])) {
+          const animeId = item.relationships?.anime?.data?.id;
+          if (animeId && animeMap[animeId]) {
+            titles.push(animeMap[animeId]);
+          }
+        }
+        return titles;
+      }
+
+      async function fetchMalWatching(username) {
+        const malUrl = `https://myanimelist.net/animelist/${encodeURIComponent(username)}/load.json?status=1`;
+        const proxies = [
+          `https://corsproxy.io/?${encodeURIComponent(malUrl)}`,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(malUrl)}`
+        ];
+
+        for (const proxyUrl of proxies) {
+          try {
+            const res = await fetchWithTimeout(proxyUrl, {}, 9000);
+            if (res.ok) {
+              const data = await res.json();
+              if (Array.isArray(data)) {
+                return data.map((item) => item.anime_title || item.anime_title_eng).filter(Boolean);
+              }
+            }
+          } catch (e) {}
+        }
+        throw new Error('MAL request failed.');
       }
 
       async function convertImgToBase64(imgUrl) {
@@ -1281,7 +1503,7 @@ Made in Abyss"
           saveEntries();
           renderEntries();
 
-          await sleep(150);
+          await sleep(120);
         }
 
         isFetching = false;
@@ -1307,7 +1529,7 @@ Made in Abyss"
         let candidates = [];
         const errors = [];
 
-        // 1. AniList (Pobiera okładkę, status i ocenę AniList)
+        // 1. AniList
         try {
           const anilistResult = await fetchAnilistCandidates(title);
           if (anilistResult.candidates && anilistResult.candidates.length) {
@@ -1325,7 +1547,7 @@ Made in Abyss"
           errors.push('AniList: ' + (err?.message || err));
         }
 
-        // 2. Kitsu (Ocena i zapasowa okładka w razie potrzeby)
+        // 2. Kitsu
         try {
           const kitsuResult = await fetchKitsuData(matchedTitle || title);
           if (!coverUrl && kitsuResult.coverUrl) {
