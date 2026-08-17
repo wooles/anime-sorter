@@ -1,33 +1,49 @@
-# Anime Sorter (sort.moe)
+# anime-sorter
 
-A fast, lightweight, and client-side web application to sort, rank, and create tier lists of anime series through head-to-head comparisons. 
+A web-based anime ranking and sorting tool. Allows users to run through a manual merge sort of their favorite or currently watching anime titles.
 
-Built as a single-file application with zero backend requirements, automated metadata/cover retrieval from **AniList** and **Kitsu**, and one-click ranking export.
-
----
+**Try it online:** [https://sort.moe/](https://sort.moe/)
 
 ## Features
 
-* **$O(n \log n)$ Merge Sort Engine:** Minimizes the number of 1v1 comparisons needed to generate an exact, mathematically consistent ranking. Includes dedicated **Tie** support for equal matchups.
-* **Smart Cover & Metadata Fetching:**
-  * Auto-fetches official artwork and community ratings from **AniList** (GraphQL) and **Kitsu API**.
-  * **Airing Priority:** Automatically selects currently airing seasons (`RELEASING` / `CURRENT`) by default when generic titles are entered.
-  * **Filters Unreleased Shows:** Automatically filters out upcoming/unreleased titles to prevent invalid matchups.
-* **Season / Version Disambiguation:** Manual season selector modal (**🔍 Season**) with an integrated search tool to quickly switch between seasons, OVAs, or spin-offs.
-* **Side-by-Side Community Ratings:** Displays verified community scores directly on final ranking cards (`AniList: ★ X% • Kitsu: ★ Y%`).
-* **High-Res PNG Export & Image Sharing:**
-  * **Export to PNG:** Renders high-resolution ranking cards locally via `html2canvas` with built-in Base64 cross-origin proxying to prevent CORS tainted canvas issues across all modern browsers.
-  * **Instant Upload to Litterbox (Catbox):** 1-click cloud upload with 72h temporary hosting and automatic link copying to the clipboard.
-* **Zero Backend & Offline-Ready:** Entirely client-side with persistent `localStorage` caching.
+* **Entirely client-side:** Runs completely in the browser as a standalone single-page application; no backend server required.
+* **Watchlist Import:** One-click import of currently watching lists directly from **AniList** or **Kitsu** by username.
+* **Manual Input:** Ability to paste custom anime title lists.
+* **Automatic Artwork & Metadata:** Fetches official anime cover images, release status badges (*Airing* / *Finished*), and average user ratings from AniList & Kitsu.
+* **Manual Merge Sort:** Interactive pairwise comparison algorithm with full support for ties.
+* **Season Disambiguation Picker:** Search and switch between different seasons, sequels, or franchise entries on demand.
+* **Export & Sharing:**
+  * Download the finalized ranking as a high-resolution PNG image (powered by `html2canvas`).
+  * Instant cloud upload to **Litterbox** with a direct, shareable temporary link (valid for 72 hours) and one-click clipboard copy.
+* **Local Caching:** Persistent `localStorage` cache for anime metadata and covers to prevent redundant API calls.
 
----
+## How to Use
 
-## Live version
+1. **Add Anime Titles:**
+   * **Import:** Select AniList or Kitsu, enter your username, and click `Import Watching`.
+   * **Manual Entry:** Paste anime titles into the text area (one per line) and click `Add titles`.
+2. **Review & Adjust:**
+   * Wait for covers and scores to load automatically.
+   * If a title matched the wrong season or adaptation, click `🔍 Season` to search and pick the correct one from the selection window.
+3. **Sort:**
+   * Click `Start sorting` to begin pairwise matchups.
+   * Click on the anime you prefer, or click `🤝 Tie` if you consider them equally good.
+4. **Export Results:**
+   * View the final ranked list.
+   * Click `📸 Download ranking as image (PNG)` to save your ranking locally.
+   * Click `☁️ Upload to Litterbox (link)` to upload your ranking image and get a shareable link.
 
-Try the live version at: **[https://sort.moe](https://sort.moe)**
+## API & Privacy
 
----
+* All network requests are executed directly from your browser to public endpoints:
+  * [AniList GraphQL API](https://anilist.gitbook.io/anilist-apiv2-docs/)
+  * [Kitsu Edge API](https://kitsu.docs.apiary.io/)
+  * [Litterbox (Catbox.moe)](https://litterbox.catbox.moe/)
+* No user data, watchlists, or preferences are stored on any external server. All state is preserved locally in your browser's `localStorage`.
 
-## How to Run Locally
+## Credits
 
-Download index.html and run it in any browser.
+* [charasort](https://github.com/execfera/charasort) — original concept & merge sort inspiration
+* [html2canvas](https://html2canvas.hertzen.com/) — client-side image generation
+* [Litterbox / Catbox.moe](https://catbox.moe/) — temporary image hosting
+* [AniList](https://anilist.co/) & [Kitsu](https://kitsu.io/) — anime databases and artwork
