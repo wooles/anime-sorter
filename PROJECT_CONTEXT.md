@@ -74,7 +74,11 @@
 ---
 
 ## 6. Coding & Modification Rules for Agents
-* **Workflow Trigger:** When the user says `"kontynuuj"`, `"kontynuuj anisort"`, or similar, recognize that you are working on the `anime-sorter` (sort.moe) project.
+* **Workflow Trigger & Auto-Onboarding:** When the user says `"kontynuuj"`, `"kontynuuj anisort"`, or similar on any computer:
+  1. Recognize the workspace as the `anime-sorter` (sort.moe) project.
+  2. Inspect the local environment (check Git status/branches, verify if Python/.NET are available, run `setup.ps1` or restore dependencies if needed).
+  3. Ensure recommended VS Code extensions/settings are available in `.vscode/`.
+  4. Report to the user the current status of the project, git branch synchronization, and readiness to continue development.
 * **GitHub Push Rule:** Always ask the user for explicit confirmation before executing `git push` to GitHub.
 * **Complete Code Only:** Always maintain and deliver the entire `index.html` file without placeholders, truncation, or omission comments (`// ... rest of code`).
 * **List Reset Behavior:** Any new import or manual add action must clear existing entries (`entries = []`) to prevent duplicate bloat.
