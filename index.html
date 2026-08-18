@@ -804,8 +804,8 @@ Made in Abyss"
       const candidateGrid = document.getElementById('candidateGrid');
       let activeDisambiguationEntry = null;
 
-      const STORAGE_KEY = 'manual-anime-sorter:entries:v54';
-      const COVER_CACHE_PREFIX = 'manual-anime-cover:v54:';
+      const STORAGE_KEY = 'manual-anime-sorter:entries:v55';
+      const COVER_CACHE_PREFIX = 'manual-anime-cover:v55:';
       const THEME_KEY = 'manual-anime-sorter:theme:v1';
       const LANG_KEY = 'manual-anime-sorter:lang:v1';
 
@@ -1136,9 +1136,9 @@ Made in Abyss"
         const malUrl = `https://myanimelist.net/animelist/${encodeURIComponent(username)}/load.json?status=1`;
 
         const endpoints = [
+          `https://proxy.cors.sh/${malUrl}`,
+          `https://corsproxy.io/?url=${encodeURIComponent(malUrl)}`,
           `https://api.allorigins.win/raw?url=${encodeURIComponent(malUrl)}`,
-          `https://corsproxy.io/?${encodeURIComponent(malUrl)}`,
-          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(malUrl)}`,
           `/api/mal/watchlist/${encodeURIComponent(username)}`
         ];
 
@@ -1805,11 +1805,10 @@ Made in Abyss"
           resolvedMalId = parseInt(cached.malId, 10);
         }
 
-        // 1. Fetch AniList
-        let anilistData = null;
-        if (!anilistScore || !coverUrl || !resolvedMalId) {
+        // 1. Fetch AniList if missing anilistScore or coverUrl or candidates
+        if (!anilistScore || !coverUrl || !candidates.length) {
           try {
-            anilistData = await fetchAnilistData(title, resolvedMalId);
+            const anilistData = await fetchAnilistData(title, resolvedMalId);
             if (anilistData?.candidates?.length) {
               candidates = anilistData.candidates;
               const top = candidates[0];
@@ -1835,8 +1834,15 @@ Made in Abyss"
         ].filter((t, idx, self) => t && self.indexOf(t) === idx);
 
         // 2. Fetch Kitsu and MAL in parallel
-        const kitsuPromise = !kitsuScore ? fetchFirstMatch(altTitles, fetchKitsuData) : Promise.resolve(null);
-        const malPromise = !malScore ? fetchFirstMatch(altTitles, fetchMalData) : Promise.resolve(null);
+        const kitsuPromise = !kitsuScore
+          ? fetchFirstMatch(altTitles, fetchKitsuData)
+          : Promise.resolve(null);
+
+        const malPromise = !malScore
+          ? (resolvedMalId
+              ? fetchMalData(title, resolvedMalId)
+              : fetchFirstMatch(altTitles, (t) => fetchMalData(t)))
+          : Promise.resolve(null);
 
         const [kitsuRes, malRes] = await Promise.allSettled([kitsuPromise, malPromise]);
 
@@ -1999,72 +2005,35 @@ Made in Abyss"
         throw lastError || new Error('No results on Kitsu.');
       }
 
-      async function fetchMalData(originalQuery) {
-        const queries = getSearchQueries(originalQuery);
-
-        // 1. Try local server proxy first
-        for (const q of queries) {
+      async function fetchMalData(originalQuery, malId = null) {
+        // 1. If malId is known, query Tenrai directly by ID (instant, precise)
+        if (malId) {
           try {
-            const res = await fetchWithTimeout(`/api/mal/search?q=${encodeURIComponent(q)}`, {}, 3000);
+            const res = await fetchWithTimeout(`https://api.tenrai.org/v1/anime/${malId}`, {}, 4000);
             if (res.ok) {
-              const list = await res.json();
-              if (Array.isArray(list) && list.length) {
-                const best = list[0];
+              const json = await res.json();
+              const item = json?.data;
+              if (item) {
                 return {
-                  malId: best.malId || null,
-                  title: best.title || '',
-                  malScore: best.malScore ? String(best.malScore) : '',
-                  coverUrl: best.coverUrl || '',
-                  animeStatus: best.animeStatus || ''
+                  malId: item.mal_id || malId,
+                  title: item.title || '',
+                  malScore: item.score ? String(item.score) : '',
+                  coverUrl: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '',
+                  animeStatus: item.status || ''
                 };
               }
             }
           } catch (e) {}
         }
 
-        // 2. Try CORS proxy to MyAnimeList search prefix
+        // 2. Query Tenrai REST API by search queries
+        const queries = getSearchQueries(originalQuery);
         for (const q of queries) {
           try {
-            const malUrl = `https://myanimelist.net/search/prefix.json?type=anime&keyword=${encodeURIComponent(q)}`;
-            const proxyUrls = [
-              `https://corsproxy.io/?${encodeURIComponent(malUrl)}`,
-              `https://api.allorigins.win/raw?url=${encodeURIComponent(malUrl)}`
-            ];
-            for (const pUrl of proxyUrls) {
-              try {
-                const res = await fetchWithTimeout(pUrl, {}, 3500);
-                if (res.ok) {
-                  let data = await res.json();
-                  if (typeof data === 'string') {
-                    try { data = JSON.parse(data); } catch (e) {}
-                  }
-                  if (data && typeof data === 'object' && Array.isArray(data.contents)) {
-                    data = data.contents;
-                  }
-                  const items = data?.categories?.find(cat => cat.type === 'anime')?.items || [];
-                  if (items.length) {
-                    const item = items[0];
-                    const payload = item.payload || {};
-                    return {
-                      malId: item.id || null,
-                      title: item.name || '',
-                      malScore: payload.score ? String(payload.score) : '',
-                      coverUrl: cleanMalCoverUrl(item.image_url),
-                      animeStatus: payload.status || ''
-                    };
-                  }
-                }
-              } catch (e) {}
-            }
-          } catch (e) {}
-        }
-
-        // 3. Try Tenrai API fallback (drop-in high performance modern successor)
-        for (const q of queries.slice(0, 1)) {
-          try {
-            const res = await fetchWithTimeout(`https://api.tenrai.org/v1/anime?q=${encodeURIComponent(q)}&limit=1`, {}, 5000);
+            const res = await fetchWithTimeout(`https://api.tenrai.org/v1/anime?q=${encodeURIComponent(q)}&limit=1`, {}, 4000);
             if (res.ok) {
-              const item = (await res.json())?.data?.[0];
+              const json = await res.json();
+              const item = json?.data?.[0];
               if (item) {
                 return {
                   malId: item.mal_id || null,
@@ -2177,7 +2146,9 @@ Made in Abyss"
             try {
               const [kitsuRes, malRes] = await Promise.allSettled([
                 fetchFirstMatch(modalAltTitles, fetchKitsuData),
-                fetchFirstMatch(modalAltTitles, fetchMalData)
+                candidate.idMal
+                  ? fetchMalData(candidate.title, candidate.idMal)
+                  : fetchFirstMatch(modalAltTitles, (t) => fetchMalData(t))
               ]);
               if (kitsuRes.status === 'fulfilled' && kitsuRes.value?.score) {
                 activeDisambiguationEntry.kitsuScore = kitsuRes.value.score;
