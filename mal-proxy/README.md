@@ -1,28 +1,29 @@
-﻿# sort.moe MAL Proxy (.NET 8 Minimal API)
+# sort.moe MAL Proxy (.NET 8 Minimal API)
 
-Lekki mikroserwis pośredniczący (proxy) dla aplikacji **sort.moe**, umożliwiający bezpieczne pobieranie watchlisty użytkowników z **MyAnimeList (MAL)** bez potrzeby ręcznego eksportu pliku XML.
+A lightweight proxy microservice for **sort.moe** that enables secure retrieval of user watchlists and search queries from **MyAnimeList (MAL)**.
 
-## Główne funkcje
-* **CORS Enabled:** Zezwala na zapytania z dowolnej domeny frontendowej (`Access-Control-Allow-Origin: *`), idealne dla statycznych SPA (GitHub Pages).
+## Key Features
+* **CORS Enabled:** Allows requests from any frontend domain (`Access-Control-Allow-Origin: *`), ideal for static SPA hosting (GitHub Pages).
 * **Dual Fetch Strategy:** 
-  1. Obsługa oficjalnego MAL API v2 z autoryzacją `X-MAL-CLIENT-ID`.
-  2. Automatyczny fallback do publicznego endpointu MyAnimeList.
-* **In-Memory Caching:** Zapamiętuje wyniki zapytań na 10 minut, eliminując ryzyko przekroczenia limitów zapytań (Rate-Limit) na MAL.
-* **Standaryzowany format JSON:** Zwraca tablicę obiektów anime bezpośrednio zoptymalizowaną pod sort.moe.
+  1. Supports the official MAL API v2 with `X-MAL-CLIENT-ID` authentication header.
+  2. Automatic fallback to the public MyAnimeList watchlist endpoint.
+* **In-Memory Caching:** Caches responses for 10–30 minutes, preventing rate-limiting (HTTP 429) issues from upstream MAL servers.
+* **Tenrai.Net Integration:** Uses the modern Tenrai.Net library for high-speed anime search.
+* **Standardized JSON Output:** Returns clean, structured anime objects tailored for sort.moe.
 
 ---
 
-## Uruchomienie lokalne (.NET 8 SDK)
+## Local Development (.NET 8 SDK)
 
 ```bash
 cd mal-proxy
 dotnet run
 ```
-Aplikacja uruchomi się pod adresem: `http://localhost:5000` (lub portem wskazanym w logach).
+The application will start at: `http://localhost:5000` (or the port specified in environment).
 
 ---
 
-## Uruchomienie w Dockerze
+## Docker Deployment
 
 ```bash
 cd mal-proxy
@@ -32,21 +33,21 @@ docker run -d -p 8080:8080 --name mal-proxy sortmoe-mal-proxy
 
 ---
 
-## Konfiguracja (`appsettings.json` lub zmienne środowiskowe)
+## Configuration (`appsettings.json` or Environment Variables)
 
-* `MyAnimeList:ClientId` (lub zmienna środowiskowa `MAL_CLIENT_ID`): Opcjonalny Client ID z panelu deweloperskiego MAL API.
-* `CacheDurationMinutes`: Czas pamięci podręcznej w minutach (domyślnie: `10`).
+* `MyAnimeList:ClientId` (or environment variable `MAL_CLIENT_ID`): Optional Client ID from MyAnimeList Developer portal.
+* `CacheDurationMinutes`: Cache TTL duration in minutes (default: `10`).
 
 ---
 
-## Endpointy API
+## API Endpoints
 
-* `GET /health` — Status zdrowia serwisu:
+* `GET /health` — Health check endpoint:
   ```json
-  { "status": "Healthy", "timestamp": "2026-08-18T21:14:00Z" }
+  { "status": "Healthy", "timestamp": "2026-08-19T00:00:00Z" }
   ```
 
-* `GET /api/mal/watchlist/{username}` — Pobiera aktualnie oglądane anime użytkownika:
+* `GET /api/mal/watchlist/{username}` — Retrieves currently watching anime for the user:
   ```json
   [
     {
@@ -60,3 +61,5 @@ docker run -d -p 8080:8080 --name mal-proxy sortmoe-mal-proxy
     }
   ]
   ```
+
+* `GET /api/mal/search?q={query}` — Searches anime by keyword via Tenrai.Net.

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Anime Ranking</title>
 
-  <!-- Biblioteka do generowania pliku graficznego -->
+  <!-- Client-side canvas/image rendering library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
@@ -542,7 +542,7 @@ Made in Abyss"
     </div>
   </section>
 
-  <!-- Modal wyboru sezonu -->
+  <!-- Season Disambiguation Modal -->
   <div id="disambiguationModal" class="modal-backdrop hidden">
     <div class="modal-content">
       <div class="modal-header">
@@ -978,7 +978,7 @@ Made in Abyss"
         applyTheme(newTheme);
       }
 
-      /* Watchlist Importer (AniList, Kitsu & MyAnimeList API) */
+      /* Watchlist Importer (AniList, Kitsu & MyAnimeList) */
       async function importUserWatchlist() {
         const t = translations[currentLang];
         const service = importServiceSelect.value;
@@ -1280,7 +1280,7 @@ Made in Abyss"
         return results;
       }
 
-      /* Ręczne dodawanie tytułów - czyści starą listę i generuje od nowa */
+      /* Manual title input - clears existing entries and parses new ones */
       function addTitles() {
         const t = translations[currentLang];
         const raw = titlesInput.value.trim();
@@ -1654,7 +1654,7 @@ Made in Abyss"
         return matches / qWords.length;
       }
 
-      /* Szybki generator zapytań wyszukiwania (wysoki sygnał, bez powtórzeń) */
+      /* High-signal search query generator (distinct, minimal redundancy) */
       function getSearchQueries(rawTitle) {
         const queries = [];
         const add = (q) => {
@@ -1700,7 +1700,7 @@ Made in Abyss"
         el.classList.add('hidden');
       }
 
-      /* Super-szybkie równoległe pobieranie okładek i ocen (12 wątków, in-place DOM update) */
+      /* High-performance concurrent metadata and score fetcher (12 workers, in-place DOM updates) */
       async function fetchAllCovers() {
         const t = translations[currentLang];
         if (isFetching) return;
