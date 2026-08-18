@@ -1,4 +1,4 @@
-﻿using MalProxy.Services;
+using MalProxy.Services;
 using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -76,7 +76,31 @@ app.MapGet(""/api/mal/watchlist/{username}"", async (
         return Results.Problem(
             detail: ex.Message,
             statusCode: StatusCodes.Status500InternalServerError,
-            title: ""Internal Server Error"");
+            title: "Internal Server Error");
+    }
+});
+
+app.MapGet("/api/mal/search", async (
+    [FromQuery] string q,
+    [FromServices] IMyAnimeListService malService,
+    CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(q))
+    {
+        return Results.BadRequest(new { error = "Query parameter 'q' cannot be empty." });
+    }
+
+    try
+    {
+        var items = await malService.SearchAnimeAsync(q, cancellationToken);
+        return Results.Ok(items);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(
+            detail: ex.Message,
+            statusCode: StatusCodes.Status500InternalServerError,
+            title: "Search Error");
     }
 });
 

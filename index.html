@@ -2059,10 +2059,10 @@ Made in Abyss"
           } catch (e) {}
         }
 
-        // 3. Try Jikan API fallback
+        // 3. Try Tenrai API fallback (drop-in high performance modern successor)
         for (const q of queries.slice(0, 1)) {
           try {
-            const res = await fetchWithTimeout(`https://api.jikan.moe/v4/anime?q=${encodeURIComponent(q)}&limit=1`, {}, 5000);
+            const res = await fetchWithTimeout(`https://api.tenrai.org/v1/anime?q=${encodeURIComponent(q)}&limit=1`, {}, 5000);
             if (res.ok) {
               const item = (await res.json())?.data?.[0];
               if (item) {

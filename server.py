@@ -102,12 +102,40 @@ class SorterHandler(http.server.SimpleHTTPRequestHandler):
                                 "malScore": str(score) if score is not None and str(score).strip() else "",
                                 "animeStatus": payload.get("status", ""),
                                 "mediaType": payload.get("media_type", "")
-                            })
+                if formatted:
+                    CACHE_SEARCH[cache_key] = (formatted, now)
+                    self.send_json(200, formatted)
+                    return
+        except Exception:
+            pass
 
-                CACHE_SEARCH[cache_key] = (formatted, now)
-                self.send_json(200, formatted)
+        # Fallback to Tenrai REST API
+        try:
+            tenrai_url = "https://api.tenrai.org/v1/anime?q=" + urllib.parse.quote(query) + "&limit=5"
+            req2 = urllib.request.Request(tenrai_url, headers={"User-Agent": "sort-moe"})
+            with urllib.request.urlopen(req2, timeout=5) as resp:
+                if resp.status == 200:
+                    t_data = json.loads(resp.read().decode('utf-8'))
+                    formatted = []
+                    for item in t_data.get('data', []):
+                        img = item.get('images', {}).get('jpg', {}).get('large_image_url', '')
+                        formatted.append({
+                            "malId": item.get("mal_id"),
+                            "title": item.get("title", ""),
+                            "coverUrl": img,
+                            "malScore": str(item.get("score")) if item.get("score") else "",
+                            "animeStatus": item.get("status", ""),
+                            "mediaType": item.get("type", "")
+                        })
+                    if formatted:
+                        CACHE_SEARCH[cache_key] = (formatted, now)
+                        self.send_json(200, formatted)
+                        return
         except Exception as ex:
-            self.send_json(500, {"error": "MAL search proxy error: " + str(ex)})
+            self.send_json(500, {"error": "MAL/Tenrai search error: " + str(ex)})
+            return
+
+        self.send_json(200, [])
 
     def handle_mal_watchlist(self, username):
         if not username:

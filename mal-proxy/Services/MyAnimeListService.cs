@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using MalProxy.Models;
@@ -174,6 +174,51 @@ public class MyAnimeListService : IMyAnimeListService
                 list.Add(new MalAnimeItem(id, title, coverUrl, status, score, watchedEps, totalEps));
             }
         }
+
+        return list;
+    }
+
+    public async Task<IReadOnlyList<MalAnimeItem>> SearchAnimeAsync(string query, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return Array.Empty<MalAnimeItem>();
+        }
+
+        var normalizedQuery = query.Trim().ToLowerInvariant();
+        var cacheKey = $"mal:search:{normalizedQuery}";
+
+        if (_cache.TryGetValue(cacheKey, out IReadOnlyList<MalAnimeItem>? cachedList) && cachedList != null)
+        {
+            return cachedList;
+        }
+
+        var list = new List<MalAnimeItem>();
+
+        try
+        {
+            var tenrai = new Tenrai.TenraiClient();
+            var searchResult = await tenrai.SearchAnimeAsync(query);
+            if (searchResult?.Data != null)
+            {
+                foreach (var anime in searchResult.Data)
+                {
+                    var id = anime.MalId;
+                    var title = anime.Title ?? anime.TitleEnglish ?? "";
+                    var coverUrl = anime.Images?.JPG?.LargeImageUrl ?? anime.Images?.JPG?.ImageUrl;
+                    var status = anime.Status;
+                    var score = anime.Score;
+                    list.Add(new MalAnimeItem(id, title, coverUrl, status, score, null, anime.Episodes));
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Tenrai search failed for '{Query}': {Error}", query, ex.Message);
+        }
+
+        var cacheDurationMinutes = _configuration.GetValue("CacheDurationMinutes", 30);
+        _cache.Set(cacheKey, list, TimeSpan.FromMinutes(cacheDurationMinutes));
 
         return list;
     }
