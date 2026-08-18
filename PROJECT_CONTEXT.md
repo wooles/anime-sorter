@@ -66,7 +66,7 @@
 ---
 
 ## 5. Storage Schema (`localStorage`)
-* `manual-anime-sorter:entries:v54` — JSON array of active entries (`id`, `name`, `malId`, `coverUrl`, `infoUrl`, `matchedTitle`, `source`, `malScore`, `anilistScore`, `kitsuScore`, `animeStatus`, `candidates`, `status`).
+* `Active Entries` — Session-only memory (`entries = []` on page load, fresh start on each visit).
 * `manual-anime-cover:v54:<normalized_title>` — cached metadata object.
 * `manual-anime-sorter:theme:v1` — `'dark'` | `'light'`.
 * `manual-anime-sorter:lang:v1` — `'en'` | `'pl'`.

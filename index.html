@@ -856,7 +856,8 @@ Made in Abyss"
 
       initLanguage();
       initTheme();
-      loadEntries();
+      // Always start with an empty entries list on page load
+      entries = [];
       renderEntries();
       updateControls();
 
@@ -2221,43 +2222,11 @@ Made in Abyss"
       }
 
       function saveEntries() {
-        try {
-          const serialized = entries.map((entry) => ({
-            ...entry,
-            status: entry.status === 'loading' ? 'pending' : entry.status
-          }));
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(serialized));
-        } catch (err) {}
+        // Entries are kept in memory for the active session only
       }
 
       function loadEntries() {
-        try {
-          const raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return;
-
-          const parsed = JSON.parse(raw);
-          if (!Array.isArray(parsed)) return;
-
-          entries = parsed
-            .filter((item) => item && typeof item.name === 'string' && item.name.trim())
-            .map((item) => ({
-              id: String(item.id || uid()),
-              name: item.name.trim(),
-              malId: item.malId ? Number(item.malId) : null,
-              coverUrl: typeof item.coverUrl === 'string' ? item.coverUrl : '',
-              infoUrl: typeof item.infoUrl === 'string' && item.infoUrl ? item.infoUrl : anilistSearchUrl(item.name.trim()),
-              status: item.status === 'ok' ? 'ok' : item.status === 'error' ? 'error' : 'pending',
-              matchedTitle: typeof item.matchedTitle === 'string' ? item.matchedTitle : '',
-              source: typeof item.source === 'string' ? item.source : '',
-              anilistScore: typeof item.anilistScore === 'string' ? item.anilistScore : '',
-              kitsuScore: typeof item.kitsuScore === 'string' ? item.kitsuScore : '',
-              malScore: typeof item.malScore === 'string' ? item.malScore : '',
-              animeStatus: typeof item.animeStatus === 'string' ? item.animeStatus : '',
-              candidates: Array.isArray(item.candidates) ? item.candidates : []
-            }));
-        } catch (err) {
-          entries = [];
-        }
+        entries = [];
       }
 
       function renderEntries() {
