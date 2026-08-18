@@ -74,6 +74,9 @@
 ---
 
 ## 6. Coding & Modification Rules for Agents
+* **Workflow Trigger:** When the user says `"kontynuuj"`, `"kontynuuj anisort"`, or similar, recognize that you are working on the `anime-sorter` (sort.moe) project.
+* **GitHub Push Rule:** Always ask the user for explicit confirmation before executing `git push` to GitHub.
 * **Complete Code Only:** Always maintain and deliver the entire `index.html` file without placeholders, truncation, or omission comments (`// ... rest of code`).
 * **List Reset Behavior:** Any new import or manual add action must clear existing entries (`entries = []`) to prevent duplicate bloat.
-* **No Server Dependencies:** Do not introduce server-side scripts or Node.js runtime requirements. The application must run standalone on GitHub Pages / static hosting.
+* **No Server Dependencies for Client App:** The core application must run standalone on GitHub Pages / static hosting without requiring backend servers.
+* **Concurrency & APIs:** Uses 12-thread parallel worker pool with Tenrai REST API (`api.tenrai.org`), AniList GraphQL, and Kitsu JSON:API.
