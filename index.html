@@ -1115,21 +1115,18 @@ Made in Abyss"
       }
 
       async function fetchFirstMatch(titles, fetcher) {
+        let fallback = null;
         for (const t of titles) {
           if (!t) continue;
           try {
             const res = await fetcher(t);
-            if (res && (res.score || res.malScore)) return res;
+            if (res) {
+              if (res.score || res.malScore) return res;
+              if (!fallback) fallback = res;
+            }
           } catch (e) {}
         }
-        for (const t of titles) {
-          if (!t) continue;
-          try {
-            const res = await fetcher(t);
-            if (res && (res.coverUrl || res.matchedTitle || res.title)) return res;
-          } catch (e) {}
-        }
-        return null;
+        return fallback;
       }
 
       async function fetchMalApiWatchingDetailed(username) {
@@ -1657,7 +1654,7 @@ Made in Abyss"
         return matches / qWords.length;
       }
 
-      /* Generator zapytań wyszukiwania */
+      /* Szybki generator zapytań wyszukiwania (wysoki sygnał, bez powtórzeń) */
       function getSearchQueries(rawTitle) {
         const queries = [];
         const add = (q) => {
@@ -1672,31 +1669,15 @@ Made in Abyss"
         const baseTitle = rawTitle.replace(/\s*\([^\)]*\)/g, '').trim();
         if (baseTitle !== rawTitle) add(baseTitle);
 
-        const lower = rawTitle.toLowerCase();
-        if (lower.includes('koukaku kidoutai')) {
-          add('Ghost in the Shell');
-        }
-
-        const cleanPunct = baseTitle.replace(/[:\-—~|/()\[\].,!?]/g, ' ').replace(/\s+/g, ' ');
-        add(cleanPunct);
-
-        const noAccents = cleanPunct.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        add(noAccents);
-
         const beforeColon = baseTitle.split(/[:\-—]/)[0]?.trim();
         if (beforeColon && beforeColon.length >= 3 && beforeColon !== baseTitle) {
           add(beforeColon);
         }
 
-        const words = noAccents.split(' ').filter(Boolean);
-        if (words.length > 2) {
-          add(words.slice(0, 3).join(' '));
-          if (words.length >= 3) {
-            add(words.slice(-2).join(' '));
-          }
-        }
+        const cleanPunct = baseTitle.replace(/[:\-—~|/()\[\].,!?]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (cleanPunct !== baseTitle) add(cleanPunct);
 
-        return queries;
+        return queries.slice(0, 3);
       }
 
       function setStatus(text = '') {
@@ -1719,7 +1700,7 @@ Made in Abyss"
         el.classList.add('hidden');
       }
 
-      /* Zoptymalizowane, równoległe pobieranie okładek i ocen (5 wątków) */
+      /* Super-szybkie równoległe pobieranie okładek i ocen (12 wątków, in-place DOM update) */
       async function fetchAllCovers() {
         const t = translations[currentLang];
         if (isFetching) return;
@@ -1743,8 +1724,19 @@ Made in Abyss"
         setError('');
         setStatus(t.fetchStarted);
 
-        const CONCURRENCY = 5;
+        const CONCURRENCY = 12;
         let currentIndex = 0;
+        let saveTimeout = null;
+
+        const triggerThrottledSave = () => {
+          if (!saveTimeout) {
+            saveTimeout = setTimeout(() => {
+              saveEntries();
+              updateControls();
+              saveTimeout = null;
+            }, 300);
+          }
+        };
 
         async function worker() {
           while (currentIndex < missing.length) {
@@ -1768,18 +1760,21 @@ Made in Abyss"
               entry.status = entry.coverUrl ? 'ok' : 'error';
             }
 
-            saveEntries();
-            renderEntries();
-            updateControls();
+            updateSingleEntryElement(entry);
+            triggerThrottledSave();
           }
         }
 
         const workers = Array.from({ length: Math.min(CONCURRENCY, missing.length) }, () => worker());
         await Promise.all(workers);
 
+        if (saveTimeout) {
+          clearTimeout(saveTimeout);
+          saveTimeout = null;
+        }
+        saveEntries();
         isFetching = false;
         updateControls();
-        renderEntries();
         setStatus(t.fetchFinished);
       }
 
@@ -1805,46 +1800,36 @@ Made in Abyss"
           resolvedMalId = parseInt(cached.malId, 10);
         }
 
-        // 1. Fetch AniList if missing anilistScore or coverUrl or candidates
-        if (!anilistScore || !coverUrl || !candidates.length) {
-          try {
-            const anilistData = await fetchAnilistData(title, resolvedMalId);
-            if (anilistData?.candidates?.length) {
-              candidates = anilistData.candidates;
-              const top = candidates[0];
-              if (!coverUrl) coverUrl = top.coverUrl;
-              if (!infoUrl) infoUrl = top.infoUrl;
-              if (!matchedTitle || matchedTitle === title) matchedTitle = top.title;
-              if (!animeStatus) animeStatus = top.animeStatus;
-              if (!source) source = 'AniList';
-              if (top.score && !anilistScore) anilistScore = top.score;
-              if (top.idMal && !resolvedMalId) resolvedMalId = parseInt(top.idMal, 10);
-            }
-          } catch (e) {
-            console.warn(`AniList fetch failed for ${title}:`, e);
-          }
-        }
+        const altTitles = [title, matchedTitle].filter((t, idx, self) => t && self.indexOf(t) === idx);
 
-        // Gather all known title variants (original, matched, romaji, english)
-        const altTitles = [
-          title,
-          matchedTitle,
-          candidates[0]?.englishTitle,
-          candidates[0]?.title
-        ].filter((t, idx, self) => t && self.indexOf(t) === idx);
+        // 1. Parallel fetch for all missing services
+        const anilistPromise = (!anilistScore || !coverUrl || !candidates.length)
+          ? fetchAnilistData(title, resolvedMalId).catch(() => null)
+          : Promise.resolve(null);
 
-        // 2. Fetch Kitsu and MAL in parallel
         const kitsuPromise = !kitsuScore
-          ? fetchFirstMatch(altTitles, fetchKitsuData)
+          ? fetchFirstMatch(altTitles, fetchKitsuData).catch(() => null)
           : Promise.resolve(null);
 
         const malPromise = !malScore
           ? (resolvedMalId
               ? fetchMalData(title, resolvedMalId)
-              : fetchFirstMatch(altTitles, (t) => fetchMalData(t)))
+              : fetchFirstMatch(altTitles, (t) => fetchMalData(t))).catch(() => null)
           : Promise.resolve(null);
 
-        const [kitsuRes, malRes] = await Promise.allSettled([kitsuPromise, malPromise]);
+        const [aniRes, kitsuRes, malRes] = await Promise.allSettled([anilistPromise, kitsuPromise, malPromise]);
+
+        if (aniRes.status === 'fulfilled' && aniRes.value?.candidates?.length) {
+          candidates = aniRes.value.candidates;
+          const top = candidates[0];
+          if (!coverUrl) coverUrl = top.coverUrl;
+          if (!infoUrl) infoUrl = top.infoUrl;
+          if (!matchedTitle || matchedTitle === title) matchedTitle = top.title;
+          if (!animeStatus) animeStatus = top.animeStatus;
+          if (!source) source = 'AniList';
+          if (top.score && !anilistScore) anilistScore = top.score;
+          if (top.idMal && !resolvedMalId) resolvedMalId = parseInt(top.idMal, 10);
+        }
 
         if (kitsuRes.status === 'fulfilled' && kitsuRes.value) {
           const kData = kitsuRes.value;
@@ -1866,6 +1851,14 @@ Made in Abyss"
             if (!source) source = 'MyAnimeList';
           }
           if (mData.malId && !resolvedMalId) resolvedMalId = parseInt(mData.malId, 10);
+        }
+
+        // If MAL score was missing and AniList just discovered idMal, quick lookup by ID
+        if (!malScore && resolvedMalId) {
+          try {
+            const extraMal = await fetchMalData(matchedTitle || title, resolvedMalId);
+            if (extraMal?.malScore) malScore = extraMal.malScore;
+          } catch (e) {}
         }
 
         if (!coverUrl && !matchedTitle) {
@@ -2272,42 +2265,82 @@ Made in Abyss"
         entryList.innerHTML = '';
 
         for (const entry of entries) {
-          const row = document.createElement('div');
-          row.className = 'entry-item';
+          entryList.appendChild(createEntryRowElement(entry, t));
+        }
+      }
 
-          const displayTitle = entry.matchedTitle || entry.name;
-          const statusBadge = getAnimeStatusBadge(entry.animeStatus);
+      function createEntryRowElement(entry, t) {
+        const row = document.createElement('div');
+        row.className = 'entry-item';
+        row.dataset.entryId = entry.id;
 
-          row.innerHTML = `
-            <img class="entry-thumb" src="${escapeHtml(entry.coverUrl || getPlaceholderCover())}" alt="" />
+        const displayTitle = entry.matchedTitle || entry.name;
+        const statusBadge = getAnimeStatusBadge(entry.animeStatus);
 
-            <div style="flex: 1; min-width: 0;">
-              <div class="entry-title" style="word-break: break-word;">${escapeHtml(displayTitle)}</div>
-              <div class="muted" style="margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                ${statusBadge}
-                <span>${escapeHtml(statusLabel(entry.status))}${entry.source ? ' • ' + escapeHtml(entry.source) : ''}</span>
-              </div>
-              ${formatScoreBadgesHtml(entry)}
+        row.innerHTML = `
+          <img class="entry-thumb" src="${escapeHtml(entry.coverUrl || getPlaceholderCover())}" alt="" />
+
+          <div style="flex: 1; min-width: 0;">
+            <div class="entry-title" style="word-break: break-word;">${escapeHtml(displayTitle)}</div>
+            <div class="entry-meta-muted muted" style="margin-top: 3px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              ${statusBadge}
+              <span>${escapeHtml(statusLabel(entry.status))}${entry.source ? ' • ' + escapeHtml(entry.source) : ''}</span>
             </div>
+            <div class="entry-scores-wrap">${formatScoreBadgesHtml(entry)}</div>
+          </div>
 
-            <div class="entry-actions">
-              <button class="secondary" data-disambig-id="${entry.id}" style="font-size: 13px; padding: 6px 10px;">${escapeHtml(t.changeVersionBtn)}</button>
-              <a
-                href="${escapeHtml(entry.infoUrl || anilistSearchUrl(displayTitle))}"
-                target="_blank"
-                rel="noopener"
-                style="font-size: 14px;"
-              >${escapeHtml(t.infoLink)}</a>
-              <button class="danger" data-remove-id="${entry.id}" style="font-size: 13px; padding: 6px 10px;">${escapeHtml(t.removeBtn)}</button>
-            </div>
+          <div class="entry-actions">
+            <button class="secondary" data-disambig-id="${entry.id}" style="font-size: 13px; padding: 6px 10px;">${escapeHtml(t.changeVersionBtn)}</button>
+            <a
+              class="entry-info-link"
+              href="${escapeHtml(entry.infoUrl || anilistSearchUrl(displayTitle))}"
+              target="_blank"
+              rel="noopener"
+              style="font-size: 14px;"
+            >${escapeHtml(t.infoLink)}</a>
+            <button class="danger" data-remove-id="${entry.id}" style="font-size: 13px; padding: 6px 10px;">${escapeHtml(t.removeBtn)}</button>
+          </div>
+        `;
+
+        const img = row.querySelector('img');
+        img.addEventListener('error', () => {
+          img.src = getPlaceholderCover();
+        });
+
+        return row;
+      }
+
+      function updateSingleEntryElement(entry) {
+        const row = entryList.querySelector(`[data-entry-id="${entry.id}"]`);
+        if (!row) return;
+        const t = translations[currentLang];
+        const displayTitle = entry.matchedTitle || entry.name;
+        const statusBadge = getAnimeStatusBadge(entry.animeStatus);
+
+        const img = row.querySelector('.entry-thumb');
+        if (img && entry.coverUrl && img.src !== entry.coverUrl) {
+          img.src = entry.coverUrl;
+        }
+
+        const titleEl = row.querySelector('.entry-title');
+        if (titleEl) titleEl.textContent = displayTitle;
+
+        const mutedEl = row.querySelector('.entry-meta-muted');
+        if (mutedEl) {
+          mutedEl.innerHTML = `
+            ${statusBadge}
+            <span>${escapeHtml(statusLabel(entry.status))}${entry.source ? ' • ' + escapeHtml(entry.source) : ''}</span>
           `;
+        }
 
-          const img = row.querySelector('img');
-          img.addEventListener('error', () => {
-            img.src = getPlaceholderCover();
-          });
+        const scoresWrap = row.querySelector('.entry-scores-wrap');
+        if (scoresWrap) {
+          scoresWrap.innerHTML = formatScoreBadgesHtml(entry);
+        }
 
-          entryList.appendChild(row);
+        const infoLink = row.querySelector('.entry-info-link');
+        if (infoLink && entry.infoUrl) {
+          infoLink.href = entry.infoUrl;
         }
       }
 
