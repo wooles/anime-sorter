@@ -7,9 +7,9 @@ A web-based anime ranking and sorting tool. Allows users to run through a manual
 ## Features
 
 * **Entirely client-side:** Runs completely in the browser as a standalone single-page application; no backend server required.
-* **Watchlist Import:** One-click import of currently watching lists directly from **AniList** or **Kitsu** by username.
+* **Watchlist Import:** One-click import of currently watching lists directly from **AniList**, **MyAnimeList**, or **Kitsu** by username.
 * **Manual Input:** Ability to paste custom anime title lists.
-* **Automatic Artwork & Metadata:** Fetches official anime cover images, release status badges (*Airing* / *Finished*), and average user ratings from AniList & Kitsu.
+* **Automatic Artwork & Triple Scores:** Fetches official anime cover images, release status badges (*Airing* / *Finished*), and community ratings from **MyAnimeList**, **AniList** & **Kitsu**.
 * **Manual Merge Sort:** Interactive pairwise comparison algorithm with full support for ties.
 * **Season Disambiguation Picker:** Search and switch between different seasons, sequels, or franchise entries on demand.
 * **Export & Sharing:**

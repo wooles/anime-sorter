@@ -338,6 +338,42 @@
       color: var(--badge-upcoming-text);
     }
 
+    .scores-container {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-top: 5px;
+    }
+
+    .score-badge {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: bold;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      line-height: 1.2;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      white-space: nowrap;
+    }
+
+    .score-mal {
+      background: #2e51a2;
+      color: #ffffff;
+    }
+
+    .score-anilist {
+      background: #02a9ff;
+      color: #ffffff;
+    }
+
+    .score-kitsu {
+      background: #f75239;
+      color: #ffffff;
+    }
+
     .modal-backdrop {
       position: fixed;
       top: 0;
@@ -423,7 +459,7 @@
     <h1 id="t_mainTitle">Anime Ranking</h1>
 
     <p id="t_mainSubtitle">
-      Paste a list of anime titles or import your watchlist directly from AniList, Kitsu, or MyAnimeList XML.
+      Paste a list of anime titles or import your watchlist directly from AniList, MyAnimeList, or Kitsu.
     </p>
 
     <!-- Watchlist Import Box -->
@@ -431,11 +467,10 @@
       <strong id="t_importBoxLabel">Import Watchlist:</strong>
       <select id="importServiceSelect">
         <option value="anilist">AniList</option>
+        <option value="mal_api">MyAnimeList (API)</option>
         <option value="kitsu">Kitsu</option>
-        <option value="mal_xml">MyAnimeList (.xml)</option>
-      </select>
+        </select>
       <input type="text" id="usernameInput" placeholder="Enter username..." />
-      <input type="file" id="malFileInput" accept=".xml" class="hidden" />
       <button id="importWatchlistBtn" class="secondary">📥 Import Watching</button>
     </div>
 
@@ -577,7 +612,7 @@ Made in Abyss"
           themeDark: "🌙 Dark Theme",
           themeLight: "☀️ Light Theme",
           mainTitle: "Anime Ranking",
-          mainSubtitle: "Paste a list of anime titles or import your watchlist directly from AniList, Kitsu, or MyAnimeList XML.",
+          mainSubtitle: "Paste a list of anime titles or import your watchlist directly from AniList, MyAnimeList, or Kitsu.",
           importBoxLabel: "Import Watchlist:",
           usernamePlaceholder: "Enter username...",
           importWatchlistBtn: "📥 Import Watching",
@@ -653,7 +688,7 @@ Made in Abyss"
           themeDark: "🌙 Ciemny motyw",
           themeLight: "☀️ Jasny motyw",
           mainTitle: "Ranking anime",
-          mainSubtitle: "Wklej listę tytułów anime lub pobierz je bezpośrednio ze swojego profilu na AniList, Kitsu lub z pliku XML z MyAnimeList.",
+          mainSubtitle: "Wklej listę tytułów anime lub pobierz je bezpośrednio ze swojego profilu na AniList, MyAnimeList lub Kitsu.",
           importBoxLabel: "Import listy:",
           usernamePlaceholder: "Wpisz nazwę użytkownika...",
           importWatchlistBtn: "📥 Pobierz oglądane",
@@ -728,8 +763,7 @@ Made in Abyss"
       const titlesInput = document.getElementById('titlesInput');
       const importServiceSelect = document.getElementById('importServiceSelect');
       const usernameInput = document.getElementById('usernameInput');
-      const malFileInput = document.getElementById('malFileInput');
-      const importWatchlistBtn = document.getElementById('importWatchlistBtn');
+            const importWatchlistBtn = document.getElementById('importWatchlistBtn');
       const addBtn = document.getElementById('addBtn');
       const fetchCoversBtn = document.getElementById('fetchCoversBtn');
       const clearCoverCacheBtn = document.getElementById('clearCoverCacheBtn');
@@ -770,8 +804,8 @@ Made in Abyss"
       const candidateGrid = document.getElementById('candidateGrid');
       let activeDisambiguationEntry = null;
 
-      const STORAGE_KEY = 'manual-anime-sorter:entries:v51';
-      const COVER_CACHE_PREFIX = 'manual-anime-cover:v51:';
+      const STORAGE_KEY = 'manual-anime-sorter:entries:v54';
+      const COVER_CACHE_PREFIX = 'manual-anime-cover:v54:';
       const THEME_KEY = 'manual-anime-sorter:theme:v1';
       const LANG_KEY = 'manual-anime-sorter:lang:v1';
 
@@ -827,12 +861,14 @@ Made in Abyss"
       updateControls();
 
       importServiceSelect.addEventListener('change', () => {
-        if (importServiceSelect.value === 'mal_xml') {
-          usernameInput.classList.add('hidden');
-          malFileInput.classList.remove('hidden');
+        const srv = importServiceSelect.value;
+        const t = translations[currentLang];
+        if (srv === 'mal_api') {
+          usernameInput.placeholder = currentLang === 'pl' ? 'Wpisz nazwę użytkownika MAL...' : 'Enter MAL username...';
+        } else if (srv === 'kitsu') {
+          usernameInput.placeholder = currentLang === 'pl' ? 'Wpisz nazwę użytkownika Kitsu...' : 'Enter Kitsu username...';
         } else {
-          usernameInput.classList.remove('hidden');
-          malFileInput.classList.add('hidden');
+          usernameInput.placeholder = t.usernamePlaceholder;
         }
       });
 
@@ -942,55 +978,28 @@ Made in Abyss"
         applyTheme(newTheme);
       }
 
-      /* Watchlist Importer (AniList, Kitsu & MyAnimeList XML) */
+      /* Watchlist Importer (AniList, Kitsu & MyAnimeList API) */
       async function importUserWatchlist() {
         const t = translations[currentLang];
         const service = importServiceSelect.value;
+        const username = usernameInput.value.trim();
 
-        if (service === 'mal_xml') {
-          const file = malFileInput.files && malFileInput.files[0];
-          if (!file) {
-            setStatus(t.malFilePrompt);
-            return;
-          }
+        if (!username) {
+          setStatus(t.userPrompt);
+          return;
+        }
 
+        if (service === 'mal_api') {
           setError('');
-          setStatus(t.importLoading('MyAnimeList (.xml)'));
+          setStatus(t.importLoading('MyAnimeList (API)'));
           importWatchlistBtn.disabled = true;
 
           try {
-            const xmlText = await file.text();
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-
-            if (xmlDoc.getElementsByTagName('parsererror').length > 0) {
-              throw new Error(t.malParseError);
-            }
-
-            const animeNodes = xmlDoc.getElementsByTagName('anime');
-            const importedEntries = [];
-
-            for (let i = 0; i < animeNodes.length; i++) {
-              const node = animeNodes[i];
-              const statusEl = node.getElementsByTagName('my_status')[0];
-              const statusText = statusEl ? statusEl.textContent.trim().toLowerCase() : '';
-
-              if (statusText === 'watching' || statusText === '1' || statusText === 'currently watching') {
-                const titleEl = node.getElementsByTagName('series_title')[0];
-                const title = titleEl ? titleEl.textContent.trim() : '';
-                const malIdEl = node.getElementsByTagName('series_animedb_id')[0];
-                const malId = malIdEl ? parseInt(malIdEl.textContent.trim(), 10) : null;
-
-                if (title) {
-                  importedEntries.push({ title, malId });
-                }
-              }
-            }
-
+            const importedEntries = await fetchMalApiWatchingDetailed(username);
             importWatchlistBtn.disabled = false;
 
-            if (!importedEntries.length) {
-              setError(t.malNoWatching);
+            if (!importedEntries || !importedEntries.length) {
+              setError(t.importError('MyAnimeList (API)'));
               setStatus('');
               return;
             }
@@ -998,6 +1007,13 @@ Made in Abyss"
             entries = [];
             for (const item of importedEntries) {
               const newEntry = createEntry(item.title, item.malId);
+              newEntry.coverUrl = item.coverUrl || '';
+              newEntry.infoUrl = item.infoUrl || (item.malId ? `https://myanimelist.net/anime/${item.malId}` : '');
+              newEntry.matchedTitle = item.title;
+              newEntry.animeStatus = item.animeStatus || '';
+              newEntry.malScore = item.malScore || '';
+              newEntry.source = 'MyAnimeList';
+              newEntry.status = 'loading';
               entries.push(newEntry);
             }
 
@@ -1005,23 +1021,17 @@ Made in Abyss"
             renderEntries();
             updateControls();
 
-            setStatus(t.importSuccess(entries.length, 'MyAnimeList', file.name));
+            setStatus(t.importSuccess(entries.length, 'MyAnimeList', username));
             fetchAllCovers();
           } catch (err) {
             importWatchlistBtn.disabled = false;
-            setError(err.message || t.malParseError);
+            setError(err.message || t.importError('MyAnimeList (API)'));
             setStatus('');
           }
           return;
         }
 
-        const username = usernameInput.value.trim();
-        if (!username) {
-          setStatus(t.userPrompt);
-          return;
-        }
-
-        const serviceNames = { anilist: 'AniList', kitsu: 'Kitsu' };
+        const serviceNames = { anilist: 'AniList', mal_api: 'MyAnimeList (API)', kitsu: 'Kitsu' };
         const serviceName = serviceNames[service] || service;
 
         setError('');
@@ -1051,17 +1061,16 @@ Made in Abyss"
         entries = [];
 
         for (const item of importedEntries) {
-          const newEntry = createEntry(item.title);
+          const newEntry = createEntry(item.title, item.malId || null);
           newEntry.coverUrl = item.coverUrl || '';
           newEntry.infoUrl = item.infoUrl || '';
           newEntry.matchedTitle = item.title;
           newEntry.animeStatus = item.animeStatus || '';
-          newEntry.anilistScore = item.anilistScore || '';
-          newEntry.kitsuScore = item.kitsuScore || '';
+          if (item.anilistScore) newEntry.anilistScore = item.anilistScore;
+          if (item.kitsuScore) newEntry.kitsuScore = item.kitsuScore;
+          if (item.malScore) newEntry.malScore = item.malScore;
           newEntry.source = serviceName;
-          newEntry.status = item.coverUrl && item.infoUrl ? 'ok' : 'pending';
-          
-          writeCoverCache(item.title, newEntry);
+          newEntry.status = 'loading';
           entries.push(newEntry);
         }
 
@@ -1073,6 +1082,44 @@ Made in Abyss"
         fetchAllCovers();
       }
 
+      async function fetchMalApiWatchingDetailed(username) {
+        const endpoints = [
+          `/api/mal/watchlist/${encodeURIComponent(username)}`,
+          `http://localhost:5000/api/mal/watchlist/${encodeURIComponent(username)}`
+        ];
+
+        let lastError = null;
+        for (const ep of endpoints) {
+          try {
+            const res = await fetchWithTimeout(ep, { headers: { 'Accept': 'application/json' } }, 15000);
+            if (!res.ok) {
+              const errData = await res.json().catch(() => ({}));
+              throw new Error(errData.error || `Server HTTP ${res.status}`);
+            }
+            const data = await res.json();
+            if (Array.isArray(data)) {
+              return data.map((item) => {
+                const rawSt = (item.status || '').toLowerCase();
+                const animeStatus = rawSt.includes('airing') || rawSt.includes('current') ? 'RELEASING' : (rawSt.includes('not') || rawSt.includes('upcoming') ? 'NOT_YET_RELEASED' : 'FINISHED');
+                return {
+                  title: item.title,
+                  malId: item.malId || null,
+                  coverUrl: cleanMalCoverUrl(item.coverUrl) || '',
+                  infoUrl: item.malId ? `https://myanimelist.net/anime/${item.malId}` : '',
+                  animeStatus: animeStatus,
+                  anilistScore: '',
+                  kitsuScore: '',
+                  malScore: item.malScore ? String(item.malScore) : (item.userScore ? String(item.userScore) : '')
+                };
+              });
+            }
+          } catch (err) {
+            lastError = err;
+          }
+        }
+        throw lastError || new Error('Could not connect to MAL Proxy.');
+      }
+
       async function fetchAnilistWatchingDetailed(username) {
         const query = `
           query ($userName: String) {
@@ -1081,6 +1128,7 @@ Made in Abyss"
                 entries {
                   media {
                     id
+                    idMal
                     siteUrl
                     status
                     averageScore
@@ -1090,8 +1138,8 @@ Made in Abyss"
                       english
                     }
                     coverImage {
+                      extraLarge
                       large
-                      medium
                     }
                   }
                 }
@@ -1120,11 +1168,13 @@ Made in Abyss"
               const scoreVal = media.averageScore || media.meanScore;
               results.push({
                 title,
-                coverUrl: media.coverImage?.large || media.coverImage?.medium || '',
+                malId: media.idMal || null,
+                coverUrl: media.coverImage?.extraLarge || media.coverImage?.large || '',
                 infoUrl: media.siteUrl || '',
                 animeStatus: media.status || 'FINISHED',
                 anilistScore: scoreVal ? `${scoreVal}%` : '',
-                kitsuScore: ''
+                kitsuScore: '',
+                malScore: ''
               });
             }
           }
@@ -1165,7 +1215,7 @@ Made in Abyss"
             if (attrs.averageRating && !isNaN(attrs.averageRating)) {
               score = `${Math.round(Number(attrs.averageRating))}%`;
             }
-            animeMap[inc.id] = { title, coverUrl, infoUrl, animeStatus, kitsuScore: score, anilistScore: '' };
+            animeMap[inc.id] = { title, coverUrl, infoUrl, animeStatus, kitsuScore: score, anilistScore: '', malScore: '' };
           }
         }
 
@@ -1506,9 +1556,30 @@ Made in Abyss"
           source: '',
           anilistScore: '',
           kitsuScore: '',
+          malScore: '',
           animeStatus: '',
           candidates: []
         };
+      }
+
+      function formatScoreBadgesHtml(entry) {
+        const badges = [];
+        if (entry.malScore) {
+          badges.push(`<span class="score-badge score-mal" title="MyAnimeList Score">MAL: ★ ${escapeHtml(entry.malScore)}</span>`);
+        }
+        if (entry.anilistScore) {
+          badges.push(`<span class="score-badge score-anilist" title="AniList Score">AniList: ★ ${escapeHtml(entry.anilistScore)}</span>`);
+        }
+        if (entry.kitsuScore) {
+          badges.push(`<span class="score-badge score-kitsu" title="Kitsu Score">Kitsu: ★ ${escapeHtml(entry.kitsuScore)}</span>`);
+        }
+        if (!badges.length) return '';
+        return `<div class="scores-container">${badges.join('')}</div>`;
+      }
+      
+      function cleanMalCoverUrl(url) {
+        if (!url) return '';
+        return url.replace(/\/r\/\d+x\d+/, '').split('?')[0];
       }
 
       function normalizeTitle(value = '') {
@@ -1594,7 +1665,7 @@ Made in Abyss"
         el.classList.add('hidden');
       }
 
-      /* Zoptymalizowane, równoległe pobieranie okładek (5 wątków) */
+      /* Zoptymalizowane, równoległe pobieranie okładek i ocen (5 wątków) */
       async function fetchAllCovers() {
         const t = translations[currentLang];
         if (isFetching) return;
@@ -1604,7 +1675,7 @@ Made in Abyss"
           return;
         }
 
-        const missing = entries.filter((entry) => entry.status !== 'ok' || !entry.coverUrl);
+        const missing = entries.filter((entry) => entry.status !== 'ok' || !entry.coverUrl || !entry.malScore || !entry.anilistScore || !entry.kitsuScore);
 
         if (!missing.length) {
           setStatus(t.allCoversFetched);
@@ -1627,14 +1698,16 @@ Made in Abyss"
             try {
               const result = await getCoverForTitle(entry);
 
-              entry.coverUrl = result.coverUrl || '';
-              entry.infoUrl = result.infoUrl || anilistSearchUrl(entry.matchedTitle || entry.name);
+              entry.coverUrl = result.coverUrl || entry.coverUrl || '';
+              entry.infoUrl = result.infoUrl || entry.infoUrl || anilistSearchUrl(entry.matchedTitle || entry.name);
               entry.matchedTitle = result.matchedTitle || entry.name;
-              entry.source = result.source || '';
-              entry.anilistScore = result.anilistScore || '';
-              entry.kitsuScore = result.kitsuScore || '';
-              entry.animeStatus = result.animeStatus || '';
+              entry.source = result.source || entry.source || '';
+              if (result.anilistScore) entry.anilistScore = result.anilistScore;
+              if (result.kitsuScore) entry.kitsuScore = result.kitsuScore;
+              if (result.malScore) entry.malScore = result.malScore;
+              if (result.animeStatus) entry.animeStatus = result.animeStatus;
               entry.candidates = entry.candidates.length ? entry.candidates : (result.candidates || []);
+              entry.malId = result.malId || entry.malId;
               entry.status = entry.coverUrl ? 'ok' : 'error';
             } catch (err) {
               console.warn(`Failed to fetch metadata: ${entry.name}`, err);
@@ -1658,49 +1731,86 @@ Made in Abyss"
 
       async function getCoverForTitle(entry) {
         const title = entry.matchedTitle || entry.name;
-        const malId = entry.malId || null;
+        let resolvedMalId = entry.malId ? parseInt(entry.malId, 10) : null;
         const cached = readCoverCache(title);
 
-        if (cached && cached.coverUrl) {
+        if (cached && cached.coverUrl && cached.fetchedAll && cached.anilistScore && cached.kitsuScore && cached.malScore) {
           return cached;
         }
 
-        let coverUrl = '';
-        let infoUrl = '';
-        let matchedTitle = title;
-        let source = '';
-        let anilistScore = '';
-        let kitsuScore = '';
-        let animeStatus = '';
-        let candidates = [];
-
-        // Równoległe odpytanie AniList oraz Kitsu bez zbędnego czekania
-        const anilistPromise = malId ? fetchAnilistByMalId(malId) : fetchAnilistCandidates(title);
-        const kitsuPromise = fetchKitsuData(title);
-
-        const [anilistRes, kitsuRes] = await Promise.allSettled([anilistPromise, kitsuPromise]);
-
-        if (anilistRes.status === 'fulfilled' && anilistRes.value?.candidates?.length) {
-          candidates = anilistRes.value.candidates;
-          const top = candidates[0];
-          coverUrl = top.coverUrl;
-          infoUrl = top.infoUrl;
-          matchedTitle = top.title;
-          animeStatus = top.animeStatus;
-          source = 'AniList';
-          anilistScore = top.score || '';
+        let coverUrl = cached?.coverUrl || entry.coverUrl || '';
+        let infoUrl = cached?.infoUrl || entry.infoUrl || '';
+        let matchedTitle = cached?.matchedTitle || entry.matchedTitle || title;
+        let source = cached?.source || entry.source || '';
+        let anilistScore = cached?.anilistScore || entry.anilistScore || '';
+        let kitsuScore = cached?.kitsuScore || entry.kitsuScore || '';
+        let malScore = cached?.malScore || entry.malScore || '';
+        let animeStatus = cached?.animeStatus || entry.animeStatus || '';
+        let candidates = cached?.candidates || entry.candidates || [];
+        if (!resolvedMalId && cached?.malId) {
+          resolvedMalId = parseInt(cached.malId, 10);
         }
+
+        // 1. Fetch AniList
+        let anilistData = null;
+        if (!anilistScore || !coverUrl || !resolvedMalId) {
+          try {
+            anilistData = await fetchAnilistData(title, resolvedMalId);
+            if (anilistData?.candidates?.length) {
+              candidates = anilistData.candidates;
+              const top = candidates[0];
+              if (!coverUrl) coverUrl = top.coverUrl;
+              if (!infoUrl) infoUrl = top.infoUrl;
+              if (!matchedTitle || matchedTitle === title) matchedTitle = top.title;
+              if (!animeStatus) animeStatus = top.animeStatus;
+              if (!source) source = 'AniList';
+              if (top.score && !anilistScore) anilistScore = top.score;
+              if (top.idMal && !resolvedMalId) resolvedMalId = parseInt(top.idMal, 10);
+            }
+          } catch (e) {
+            console.warn(`AniList fetch failed for ${title}:`, e);
+          }
+        }
+
+        // Gather all known title variants (original, matched, romaji, english)
+        const altTitles = [
+          title,
+          matchedTitle,
+          candidates[0]?.englishTitle,
+          candidates[0]?.title
+        ].filter((t, idx, self) => t && self.indexOf(t) === idx);
+
+        // 2. Fetch Kitsu and MAL in parallel
+        const kitsuPromise = (!kitsuScore)
+          ? fetchKitsuDataMultiple(altTitles)
+          : Promise.resolve(null);
+
+        const malPromise = (!malScore)
+          ? fetchMalDataMultiple(altTitles)
+          : Promise.resolve(null);
+
+        const [kitsuRes, malRes] = await Promise.allSettled([kitsuPromise, malPromise]);
 
         if (kitsuRes.status === 'fulfilled' && kitsuRes.value) {
           const kData = kitsuRes.value;
           if (!coverUrl && kData.coverUrl) {
             coverUrl = kData.coverUrl;
-            source = 'Kitsu';
+            if (!source) source = 'Kitsu';
           }
           if (!infoUrl && kData.infoUrl) infoUrl = kData.infoUrl;
           if (!animeStatus && kData.animeStatus) animeStatus = kData.animeStatus;
-          if (!kitsuScore && kData.score) kitsuScore = kData.score;
+          if (kData.score && !kitsuScore) kitsuScore = kData.score;
           if (!candidates.length && kData.candidates) candidates = kData.candidates;
+        }
+
+        if (malRes.status === 'fulfilled' && malRes.value) {
+          const mData = malRes.value;
+          if (mData.malScore && !malScore) malScore = mData.malScore;
+          if (!coverUrl && mData.coverUrl) {
+            coverUrl = mData.coverUrl;
+            if (!source) source = 'MyAnimeList';
+          }
+          if (mData.malId && !resolvedMalId) resolvedMalId = parseInt(mData.malId, 10);
         }
 
         if (!coverUrl && !matchedTitle) {
@@ -1714,8 +1824,11 @@ Made in Abyss"
           source: source || 'AniList',
           anilistScore,
           kitsuScore,
+          malScore,
           animeStatus: animeStatus || 'FINISHED',
-          candidates
+          candidates,
+          malId: resolvedMalId,
+          fetchedAll: true
         };
 
         if (coverUrl) {
@@ -1724,11 +1837,31 @@ Made in Abyss"
         return result;
       }
 
+      async function fetchAnilistData(title, malId) {
+        if (malId) {
+          try {
+            const byId = await fetchAnilistByMalId(malId);
+            if (byId && byId.candidates && byId.candidates.length) {
+              return byId;
+            }
+          } catch (e) {
+            console.warn(`AniList by malId (${malId}) failed, trying title search:`, e);
+          }
+        }
+        return await fetchAnilistCandidates(title);
+      }
+
       async function fetchAnilistByMalId(malId) {
+        const idMalInt = parseInt(malId, 10);
+        if (isNaN(idMalInt) || idMalInt <= 0) {
+          throw new Error('Invalid malId');
+        }
+
         const query = `
           query ($idMal: Int) {
             Media(idMal: $idMal, type: ANIME) {
               id
+              idMal
               siteUrl
               status
               seasonYear
@@ -1743,8 +1876,8 @@ Made in Abyss"
                 native
               }
               coverImage {
+                extraLarge
                 large
-                medium
               }
             }
           }
@@ -1753,7 +1886,7 @@ Made in Abyss"
         const res = await fetchWithTimeout('https://graphql.anilist.co', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify({ query, variables: { idMal: malId } })
+          body: JSON.stringify({ query, variables: { idMal: idMalInt } })
         }, 7000);
 
         if (!res.ok) throw new Error(`AniList MAL ID failed (${res.status})`);
@@ -1764,9 +1897,10 @@ Made in Abyss"
         const scoreVal = media.averageScore || media.meanScore;
         const candidate = {
           id: media.id,
+          idMal: media.idMal || idMalInt,
           title: media.title?.romaji || media.title?.english || media.title?.native || '',
           englishTitle: media.title?.english || '',
-          coverUrl: media.coverImage?.large || media.coverImage?.medium || '',
+          coverUrl: media.coverImage?.extraLarge || media.coverImage?.large || '',
           infoUrl: media.siteUrl || '',
           animeStatus: media.status || 'FINISHED',
           year: media.seasonYear || media.startDate?.year || '',
@@ -1788,6 +1922,7 @@ Made in Abyss"
                 Page(page: 1, perPage: 10) {
                   media(search: $search, type: ANIME, sort: [SEARCH_MATCH, POPULARITY_DESC]) {
                     id
+                    idMal
                     siteUrl
                     status
                     seasonYear
@@ -1802,8 +1937,8 @@ Made in Abyss"
                       native
                     }
                     coverImage {
+                      extraLarge
                       large
-                      medium
                     }
                   }
                 }
@@ -1832,9 +1967,10 @@ Made in Abyss"
               const scoreVal = m.averageScore || m.meanScore;
               return {
                 id: m.id,
+                idMal: m.idMal || null,
                 title: m.title?.romaji || m.title?.english || m.title?.native || originalQuery,
                 englishTitle: m.title?.english || '',
-                coverUrl: m.coverImage?.large || m.coverImage?.medium || '',
+                coverUrl: m.coverImage?.extraLarge || m.coverImage?.large || '',
                 infoUrl: m.siteUrl || anilistSearchUrl(originalQuery),
                 animeStatus: m.status || 'FINISHED',
                 year: m.seasonYear || m.startDate?.year || '',
@@ -1861,6 +1997,28 @@ Made in Abyss"
         }
 
         throw lastError || new Error('No results on AniList.');
+      }
+
+      async function fetchKitsuDataMultiple(titles) {
+        for (const t of titles) {
+          if (!t) continue;
+          try {
+            const res = await fetchKitsuData(t);
+            if (res && res.score) {
+              return res;
+            }
+          } catch (e) {}
+        }
+        for (const t of titles) {
+          if (!t) continue;
+          try {
+            const res = await fetchKitsuData(t);
+            if (res && (res.coverUrl || res.matchedTitle)) {
+              return res;
+            }
+          } catch (e) {}
+        }
+        return null;
       }
 
       async function fetchKitsuData(originalQuery) {
@@ -1957,6 +2115,100 @@ Made in Abyss"
         throw lastError || new Error('No results on Kitsu.');
       }
 
+      async function fetchMalDataMultiple(titles) {
+        for (const t of titles) {
+          if (!t) continue;
+          try {
+            const res = await fetchMalData(t);
+            if (res && res.malScore) {
+              return res;
+            }
+          } catch (e) {}
+        }
+        for (const t of titles) {
+          if (!t) continue;
+          try {
+            const res = await fetchMalData(t);
+            if (res && (res.coverUrl || res.title)) {
+              return res;
+            }
+          } catch (e) {}
+        }
+        return null;
+      }
+
+      async function fetchMalData(originalQuery) {
+        const queries = getSearchQueries(originalQuery);
+
+        // 1. Try local server proxy first
+        for (const q of queries) {
+          try {
+            const res = await fetchWithTimeout(`/api/mal/search?q=${encodeURIComponent(q)}`, {}, 3000);
+            if (res.ok) {
+              const list = await res.json();
+              if (Array.isArray(list) && list.length) {
+                const best = list[0];
+                return {
+                  malId: best.malId || null,
+                  title: best.title || '',
+                  malScore: best.malScore ? String(best.malScore) : '',
+                  coverUrl: best.coverUrl || '',
+                  animeStatus: best.animeStatus || ''
+                };
+              }
+            }
+          } catch (e) {}
+        }
+
+        // 2. Try CORS proxy to MyAnimeList search prefix
+        for (const q of queries) {
+          try {
+            const malUrl = `https://myanimelist.net/search/prefix.json?type=anime&keyword=${encodeURIComponent(q)}`;
+            const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(malUrl)}`;
+            const res = await fetchWithTimeout(proxyUrl, {}, 4000);
+            if (res.ok) {
+              const data = await res.json();
+              for (const cat of (data?.categories || [])) {
+                if (cat.type === 'anime' && Array.isArray(cat.items) && cat.items.length) {
+                  const item = cat.items[0];
+                  const payload = item.payload || {};
+                  return {
+                    malId: item.id || null,
+                    title: item.name || '',
+                    malScore: payload.score ? String(payload.score) : '',
+                    coverUrl: cleanMalCoverUrl(item.image_url),
+                    animeStatus: payload.status || ''
+                  };
+                }
+              }
+            }
+          } catch (e) {}
+        }
+
+        // 3. Try Jikan API fallback
+        for (const q of queries.slice(0, 1)) {
+          try {
+            const jikanUrl = `https://api.jikan.moe/v4/anime?q=${encodeURIComponent(q)}&limit=1`;
+            const res = await fetchWithTimeout(jikanUrl, {}, 5000);
+            if (res.ok) {
+              const json = await res.json();
+              const item = json?.data?.[0];
+              if (item) {
+                return {
+                  malId: item.mal_id || null,
+                  title: item.title || '',
+                  malScore: item.score ? String(item.score) : '',
+                  coverUrl: item.images?.jpg?.large_image_url || item.images?.jpg?.image_url || '',
+                  animeStatus: item.status || ''
+                };
+              }
+            }
+          } catch (e) {}
+        }
+
+        return null;
+      }
+
       async function fetchWithTimeout(url, options = {}, timeout = 15000) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), timeout);
@@ -2045,12 +2297,21 @@ Made in Abyss"
             activeDisambiguationEntry.infoUrl = candidate.infoUrl;
             activeDisambiguationEntry.animeStatus = candidate.animeStatus || candidate.status || 'FINISHED';
             activeDisambiguationEntry.source = 'AniList';
+            if (candidate.idMal) activeDisambiguationEntry.malId = parseInt(candidate.idMal, 10);
             activeDisambiguationEntry.status = 'ok';
 
+            const modalAltTitles = [candidate.title, candidate.englishTitle].filter(Boolean);
+
             try {
-              const kitsuRes = await fetchKitsuData(candidate.title);
-              if (kitsuRes && kitsuRes.score) {
-                activeDisambiguationEntry.kitsuScore = kitsuRes.score;
+              const [kitsuRes, malRes] = await Promise.allSettled([
+                fetchKitsuDataMultiple(modalAltTitles),
+                fetchMalDataMultiple(modalAltTitles)
+              ]);
+              if (kitsuRes.status === 'fulfilled' && kitsuRes.value?.score) {
+                activeDisambiguationEntry.kitsuScore = kitsuRes.value.score;
+              }
+              if (malRes.status === 'fulfilled' && malRes.value?.malScore) {
+                activeDisambiguationEntry.malScore = malRes.value.malScore;
               }
             } catch (e) {}
 
@@ -2111,6 +2372,7 @@ Made in Abyss"
           source: '',
           anilistScore: '',
           kitsuScore: '',
+          malScore: '',
           animeStatus: '',
           candidates: [],
           infoUrl: anilistSearchUrl(entry.name)
@@ -2153,6 +2415,7 @@ Made in Abyss"
               source: typeof item.source === 'string' ? item.source : '',
               anilistScore: typeof item.anilistScore === 'string' ? item.anilistScore : '',
               kitsuScore: typeof item.kitsuScore === 'string' ? item.kitsuScore : '',
+              malScore: typeof item.malScore === 'string' ? item.malScore : '',
               animeStatus: typeof item.animeStatus === 'string' ? item.animeStatus : '',
               candidates: Array.isArray(item.candidates) ? item.candidates : []
             }));
@@ -2181,6 +2444,7 @@ Made in Abyss"
                 ${statusBadge}
                 <span>${escapeHtml(statusLabel(entry.status))}${entry.source ? ' • ' + escapeHtml(entry.source) : ''}</span>
               </div>
+              ${formatScoreBadgesHtml(entry)}
             </div>
 
             <div class="entry-actions">
@@ -2358,6 +2622,7 @@ Made in Abyss"
         card.innerHTML = `
           <img src="${escapeHtml(entry.coverUrl || getPlaceholderCover())}" alt="" />
           <h3 style="margin-top: 10px; margin-bottom: 6px; line-height: 1.3;">${escapeHtml(displayTitle)}</h3>
+          ${formatScoreBadgesHtml(entry)}
           <p class="muted" style="margin-top: 6px;">
             <a
               href="${escapeHtml(entry.infoUrl || anilistSearchUrl(displayTitle))}"
@@ -2387,28 +2652,19 @@ Made in Abyss"
 
             const displayTitle = entry.matchedTitle || entry.name;
 
-            const scoreBadges = [];
-            if (entry.anilistScore) {
-              scoreBadges.push(`AniList: ★ ${escapeHtml(entry.anilistScore)}`);
-            }
-            if (entry.kitsuScore) {
-              scoreBadges.push(`Kitsu: ★ ${escapeHtml(entry.kitsuScore)}`);
-            }
-
-            const scoreText = scoreBadges.length ? ` • ${scoreBadges.join(' • ')}` : '';
-
             row.innerHTML = `
               <div class="rank-number">${rankForThisCluster}.</div>
               <img src="${escapeHtml(entry.coverUrl || getPlaceholderCover())}" alt="" />
-              <div>
-                <strong>${escapeHtml(displayTitle)}</strong>
-                <div class="muted" style="margin-top: 4px;">
+              <div style="flex: 1; min-width: 0;">
+                <strong style="font-size: 16px; word-break: break-word;">${escapeHtml(displayTitle)}</strong>
+                <div class="muted" style="margin-top: 3px; font-size: 13px;">
                   <a
                     href="${escapeHtml(entry.infoUrl || anilistSearchUrl(displayTitle))}"
                     target="_blank"
                     rel="noopener"
-                  >${escapeHtml(t.infoLink)}</a>${scoreText}
+                  >${escapeHtml(t.infoLink)}</a>
                 </div>
+                ${formatScoreBadgesHtml(entry)}
               </div>
             `;
 
