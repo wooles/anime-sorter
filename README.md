@@ -21,7 +21,7 @@ A web-based anime ranking and sorting tool. Allows users to run through a manual
 ## How to Use
 
 1. **Add Anime Titles:**
-   * **Import:** Select **AniList**, **MyAnimeList (API)**, or **Kitsu**, enter your username, and click `📥 Import Watching`.
+   * **Import:** Select **AniList**, **MyAnimeList**, or **Kitsu**, enter your username, and click `📥 Import Watching`.
    * **Manual Entry:** Paste anime titles into the text area (one per line) and click `Add titles`.
 2. **Review & Adjust:**
    * Watch covers, status badges, and scores from MAL, AniList, and Kitsu load automatically.

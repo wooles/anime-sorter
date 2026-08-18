@@ -24,7 +24,7 @@
 1. **Watchlist Import:**
    * **AniList:** Fetching currently watching anime via AniList GraphQL API by username.
    * **Kitsu:** Fetching currently watching anime via Kitsu JSON:API by username.
-   * **MyAnimeList (API):** Fetching currently watching anime via MyAnimeList load.json endpoint with community scores.
+   * **MyAnimeList:** Fetching currently watching anime via MyAnimeList load.json endpoint with community scores.
    * **MyAnimeList XML:** Parsing `.xml` export files locally, filtering items with status `Watching` (`1`), extracting `series_title` and `series_animedb_id`.
 2. **Manual Title Input:** Textarea supporting line breaks and semicolon-separated title lists.
 3. **Triple-Source Metadata & Artwork Engine:**

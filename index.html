@@ -467,7 +467,7 @@
       <strong id="t_importBoxLabel">Import Watchlist:</strong>
       <select id="importServiceSelect">
         <option value="anilist">AniList</option>
-        <option value="mal_api">MyAnimeList (API)</option>
+        <option value="mal_api">MyAnimeList</option>
         <option value="kitsu">Kitsu</option>
         </select>
       <input type="text" id="usernameInput" placeholder="Enter username..." />
@@ -991,7 +991,7 @@ Made in Abyss"
 
         if (service === 'mal_api') {
           setError('');
-          setStatus(t.importLoading('MyAnimeList (API)'));
+          setStatus(t.importLoading('MyAnimeList'));
           importWatchlistBtn.disabled = true;
 
           try {
@@ -999,7 +999,7 @@ Made in Abyss"
             importWatchlistBtn.disabled = false;
 
             if (!importedEntries || !importedEntries.length) {
-              setError(t.importError('MyAnimeList (API)'));
+              setError(t.importError('MyAnimeList'));
               setStatus('');
               return;
             }
@@ -1025,13 +1025,13 @@ Made in Abyss"
             fetchAllCovers();
           } catch (err) {
             importWatchlistBtn.disabled = false;
-            setError(err.message || t.importError('MyAnimeList (API)'));
+            setError(err.message || t.importError('MyAnimeList'));
             setStatus('');
           }
           return;
         }
 
-        const serviceNames = { anilist: 'AniList', mal_api: 'MyAnimeList (API)', kitsu: 'Kitsu' };
+        const serviceNames = { anilist: 'AniList', mal_api: 'MyAnimeList', kitsu: 'Kitsu' };
         const serviceName = serviceNames[service] || service;
 
         setError('');
