@@ -1133,41 +1133,59 @@ Made in Abyss"
       }
 
       async function fetchMalApiWatchingDetailed(username) {
+        const malUrl = `https://myanimelist.net/animelist/${encodeURIComponent(username)}/load.json?status=1`;
+
         const endpoints = [
-          `/api/mal/watchlist/${encodeURIComponent(username)}`,
-          `http://localhost:5000/api/mal/watchlist/${encodeURIComponent(username)}`
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(malUrl)}`,
+          `https://corsproxy.io/?${encodeURIComponent(malUrl)}`,
+          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(malUrl)}`,
+          `/api/mal/watchlist/${encodeURIComponent(username)}`
         ];
 
         let lastError = null;
         for (const ep of endpoints) {
           try {
-            const res = await fetchWithTimeout(ep, { headers: { 'Accept': 'application/json' } }, 15000);
-            if (!res.ok) {
-              const errData = await res.json().catch(() => ({}));
-              throw new Error(errData.error || `Server HTTP ${res.status}`);
+            const res = await fetchWithTimeout(ep, { headers: { 'Accept': 'application/json' } }, 9000);
+            if (!res.ok) continue;
+
+            let data = await res.json();
+            if (typeof data === 'string') {
+              try { data = JSON.parse(data); } catch (e) {}
             }
-            const data = await res.json();
-            if (Array.isArray(data)) {
+            if (data && typeof data === 'object' && Array.isArray(data.contents)) {
+              data = data.contents;
+            }
+
+            if (Array.isArray(data) && data.length) {
               return data.map((item) => {
-                const rawSt = (item.status || '').toLowerCase();
-                const animeStatus = rawSt.includes('airing') || rawSt.includes('current') ? 'RELEASING' : (rawSt.includes('not') || rawSt.includes('upcoming') ? 'NOT_YET_RELEASED' : 'FINISHED');
+                const title = item.anime_title || item.title || '';
+                const malId = item.anime_id || item.malId || null;
+                const cover = item.anime_image_path || item.coverUrl || '';
+                const rawSt = item.anime_airing_status !== undefined
+                  ? (item.anime_airing_status === 1 ? 'RELEASING' : item.anime_airing_status === 3 ? 'NOT_YET_RELEASED' : 'FINISHED')
+                  : (item.status || '').toLowerCase().includes('airing') ? 'RELEASING' : 'FINISHED';
+
+                const scoreVal = (item.anime_score_val !== undefined && item.anime_score_val !== null && item.anime_score_val !== 0)
+                  ? String(item.anime_score_val)
+                  : (item.malScore ? String(item.malScore) : (item.score && item.score > 0 ? String(item.score) : ''));
+
                 return {
-                  title: item.title,
-                  malId: item.malId || null,
-                  coverUrl: cleanMalCoverUrl(item.coverUrl) || '',
-                  infoUrl: item.malId ? `https://myanimelist.net/anime/${item.malId}` : '',
-                  animeStatus: animeStatus,
+                  title,
+                  malId: malId ? Number(malId) : null,
+                  coverUrl: cleanMalCoverUrl(cover),
+                  infoUrl: malId ? `https://myanimelist.net/anime/${malId}` : '',
+                  animeStatus: rawSt,
                   anilistScore: '',
                   kitsuScore: '',
-                  malScore: item.malScore ? String(item.malScore) : (item.userScore ? String(item.userScore) : '')
+                  malScore: scoreVal
                 };
-              });
+              }).filter((item) => item.title);
             }
           } catch (err) {
             lastError = err;
           }
         }
-        throw lastError || new Error('Could not connect to MAL Proxy.');
+        throw lastError || new Error('Could not load watchlist from MyAnimeList.');
       }
 
       async function fetchAnilistWatchingDetailed(username) {
@@ -2008,21 +2026,35 @@ Made in Abyss"
         for (const q of queries) {
           try {
             const malUrl = `https://myanimelist.net/search/prefix.json?type=anime&keyword=${encodeURIComponent(q)}`;
-            const res = await fetchWithTimeout(`https://corsproxy.io/?${encodeURIComponent(malUrl)}`, {}, 4000);
-            if (res.ok) {
-              const data = await res.json();
-              const items = data?.categories?.find(cat => cat.type === 'anime')?.items || [];
-              if (items.length) {
-                const item = items[0];
-                const payload = item.payload || {};
-                return {
-                  malId: item.id || null,
-                  title: item.name || '',
-                  malScore: payload.score ? String(payload.score) : '',
-                  coverUrl: cleanMalCoverUrl(item.image_url),
-                  animeStatus: payload.status || ''
-                };
-              }
+            const proxyUrls = [
+              `https://corsproxy.io/?${encodeURIComponent(malUrl)}`,
+              `https://api.allorigins.win/raw?url=${encodeURIComponent(malUrl)}`
+            ];
+            for (const pUrl of proxyUrls) {
+              try {
+                const res = await fetchWithTimeout(pUrl, {}, 3500);
+                if (res.ok) {
+                  let data = await res.json();
+                  if (typeof data === 'string') {
+                    try { data = JSON.parse(data); } catch (e) {}
+                  }
+                  if (data && typeof data === 'object' && Array.isArray(data.contents)) {
+                    data = data.contents;
+                  }
+                  const items = data?.categories?.find(cat => cat.type === 'anime')?.items || [];
+                  if (items.length) {
+                    const item = items[0];
+                    const payload = item.payload || {};
+                    return {
+                      malId: item.id || null,
+                      title: item.name || '',
+                      malScore: payload.score ? String(payload.score) : '',
+                      coverUrl: cleanMalCoverUrl(item.image_url),
+                      animeStatus: payload.status || ''
+                    };
+                  }
+                }
+              } catch (e) {}
             }
           } catch (e) {}
         }
