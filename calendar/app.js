@@ -5,7 +5,8 @@ const state = {
     username: '',
     year: new Date().getFullYear(),
     month: new Date().getMonth() + 1, // 1-12
-    calendarData: null
+    calendarData: null,
+    uploadedMalEntries: null
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -73,7 +74,7 @@ function setupEventListeners() {
             state.year--;
         }
         updateMonthDisplay();
-        if (state.username) fetchCalendar();
+        if (state.uploadedMalEntries || state.username) fetchCalendar();
     });
 
     document.getElementById('nextMonthBtn').addEventListener('click', () => {
@@ -83,7 +84,7 @@ function setupEventListeners() {
             state.year++;
         }
         updateMonthDisplay();
-        if (state.username) fetchCalendar();
+        if (state.uploadedMalEntries || state.username) fetchCalendar();
     });
 
     document.getElementById('todayBtn').addEventListener('click', () => {
@@ -91,7 +92,7 @@ function setupEventListeners() {
         state.year = now.getFullYear();
         state.month = now.getMonth() + 1;
         updateMonthDisplay();
-        if (state.username) fetchCalendar();
+        if (state.uploadedMalEntries || state.username) fetchCalendar();
     });
 
     document.getElementById('exportIcsBtn').addEventListener('click', () => {
@@ -101,6 +102,12 @@ function setupEventListeners() {
         }
         generateAndDownloadIcs(state.calendarData);
     });
+
+    // MAL XML File Upload listener
+    const xmlInput = document.getElementById('malXmlFileInput');
+    if (xmlInput) {
+        xmlInput.addEventListener('change', handleMalXmlFile);
+    }
 
     document.getElementById('detailModal').addEventListener('click', (e) => {
         if (e.target.id === 'detailModal') {
@@ -125,11 +132,72 @@ function handleLoadCalendar() {
 
     state.username = user;
     state.platform = plat;
+    state.uploadedMalEntries = null;
 
     localStorage.setItem('anime_cal_user', user);
     localStorage.setItem('anime_cal_plat', plat);
 
     fetchCalendar();
+}
+
+async function handleMalXmlFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    showLoading(`Parsing MyAnimeList XML export file...`);
+    try {
+        const text = await file.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(text, "text/xml");
+        const animeNodes = xmlDoc.getElementsByTagName("anime");
+
+        const watchingList = [];
+        let usernameFound = xmlDoc.getElementsByTagName("user_name")?.[0]?.textContent || 'MyAnimeList User';
+
+        for (let i = 0; i < animeNodes.length; i++) {
+            const node = animeNodes[i];
+            const status = node.getElementsByTagName("my_status")?.[0]?.textContent;
+            // Status 1 or "Watching"
+            if (status === "1" || status === "Watching") {
+                const malId = parseInt(node.getElementsByTagName("series_animedb_id")?.[0]?.textContent || "0", 10);
+                const title = node.getElementsByTagName("series_title")?.[0]?.textContent || "";
+                const watched = parseInt(node.getElementsByTagName("my_watched_episodes")?.[0]?.textContent || "0", 10);
+                const score = parseFloat(node.getElementsByTagName("my_score")?.[0]?.textContent || "0");
+
+                if (malId > 0 && title) {
+                    watchingList.push({
+                        malId,
+                        title,
+                        watched,
+                        score
+                    });
+                }
+            }
+        }
+
+        if (watchingList.length === 0) {
+            throw new Error('No currently "Watching" anime found in the uploaded MAL XML file.');
+        }
+
+        state.platform = 'MyAnimeList';
+        state.username = usernameFound;
+        state.uploadedMalEntries = watchingList;
+        document.getElementById('platformSelect').value = 'MyAnimeList';
+        document.getElementById('usernameInput').value = usernameFound;
+
+        showLoading(`Matching ${watchingList.length} watching anime with LiveChart broadcast schedules...`);
+        const { episodes, totalWatching } = await fetchSchedulesForMalList(watchingList, state.year, state.month);
+
+        const gridData = buildMonthlyGrid(state.year, state.month, episodes, usernameFound, 'MyAnimeList (XML)', totalWatching);
+        state.calendarData = { ...gridData, episodes };
+        renderCalendar(gridData);
+    } catch (err) {
+        console.error(err);
+        alert('XML Import Error: ' + err.message);
+    } finally {
+        hideLoading();
+        event.target.value = '';
+    }
 }
 
 async function fetchCalendar() {
@@ -138,29 +206,36 @@ async function fetchCalendar() {
         let episodes = [];
         let totalWatching = 0;
 
-        // Try backend API endpoint first (when .NET Tenrai backend is running)
-        try {
-            const apiRes = await fetch(`/api/calendar/month?platform=${encodeURIComponent(state.platform)}&username=${encodeURIComponent(state.username)}&year=${state.year}&month=${state.month}`);
-            if (apiRes.ok) {
-                const apiData = await apiRes.json();
-                state.calendarData = apiData;
-                renderCalendar(apiData);
-                return;
-            }
-        } catch {}
+        // If using previously uploaded MAL entries
+        if (state.platform === 'MyAnimeList' && state.uploadedMalEntries && state.uploadedMalEntries.length > 0) {
+            const res = await fetchSchedulesForMalList(state.uploadedMalEntries, state.year, state.month);
+            episodes = res.episodes;
+            totalWatching = res.totalWatching;
+        } else {
+            // Try backend API endpoint first (when .NET Tenrai backend is running)
+            try {
+                const apiRes = await fetch(`/api/calendar/month?platform=${encodeURIComponent(state.platform)}&username=${encodeURIComponent(state.username)}&year=${state.year}&month=${state.month}`);
+                if (apiRes.ok) {
+                    const apiData = await apiRes.json();
+                    state.calendarData = apiData;
+                    renderCalendar(apiData);
+                    return;
+                }
+            } catch {}
 
-        if (state.platform === 'AniList') {
-            const res = await fetchAniListWatching(state.username, state.year, state.month);
-            episodes = res.episodes;
-            totalWatching = res.totalWatching;
-        } else if (state.platform === 'MyAnimeList') {
-            const res = await fetchMalWatching(state.username, state.year, state.month);
-            episodes = res.episodes;
-            totalWatching = res.totalWatching;
-        } else if (state.platform === 'Kitsu') {
-            const res = await fetchKitsuWatching(state.username, state.year, state.month);
-            episodes = res.episodes;
-            totalWatching = res.totalWatching;
+            if (state.platform === 'AniList') {
+                const res = await fetchAniListWatching(state.username, state.year, state.month);
+                episodes = res.episodes;
+                totalWatching = res.totalWatching;
+            } else if (state.platform === 'MyAnimeList') {
+                const res = await fetchMalWatching(state.username, state.year, state.month);
+                episodes = res.episodes;
+                totalWatching = res.totalWatching;
+            } else if (state.platform === 'Kitsu') {
+                const res = await fetchKitsuWatching(state.username, state.year, state.month);
+                episodes = res.episodes;
+                totalWatching = res.totalWatching;
+            }
         }
 
         const gridData = buildMonthlyGrid(state.year, state.month, episodes, state.username, state.platform, totalWatching);
@@ -168,7 +243,7 @@ async function fetchCalendar() {
         renderCalendar(gridData);
     } catch (err) {
         console.error(err);
-        alert('Error: ' + err.message);
+        alert(err.message);
     } finally {
         hideLoading();
     }
@@ -321,7 +396,7 @@ async function fetchAniListWatching(username, year, month) {
     return { episodes, totalWatching };
 }
 
-// 2. MyAnimeList Watching
+// 2. MyAnimeList Watching & XML Matcher
 async function fetchMalWatching(username, year, month) {
     let watching = [];
     
@@ -343,9 +418,14 @@ async function fetchMalWatching(username, year, month) {
     } catch {}
 
     if (watching.length === 0) {
-        throw new Error(`MyAnimeList blocks direct client-side browser requests on static GitHub Pages. Please run the local Tenrai.Net backend (run.bat) or use AniList / Kitsu on sort.moe.`);
+        throw new Error(`MyAnimeList blocks direct browser requests due to CORS on static GitHub Pages.\n\nOption 1: Click the '📁 MAL .xml' button above and upload your MAL XML export (from myanimelist.net/panel.php?go=export).\nOption 2: Run the local Tenrai.Net app (run.bat).\nOption 3: Use AniList or Kitsu.`);
     }
 
+    return await fetchSchedulesForMalList(watching, year, month);
+}
+
+// Reusable LiveChart Schedule Matcher for MAL IDs
+async function fetchSchedulesForMalList(watching, year, month) {
     const totalWatching = watching.length;
     const malIds = watching.map(w => w.malId).filter(Boolean);
 

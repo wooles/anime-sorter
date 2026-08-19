@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
@@ -32,6 +32,10 @@
                     <input type="text" id="usernameInput" class="form-control" placeholder="Username (e.g. wooles)" required autocomplete="on">
                 </div>
                 <button type="submit" id="loadBtn" class="btn btn-primary">Load</button>
+                <label class="btn btn-outline btn-sm" title="Upload MyAnimeList XML Export (.xml)" style="cursor: pointer; margin-left: 4px; display: inline-flex; align-items: center; gap: 4px;">
+                    📁 MAL .xml
+                    <input type="file" id="malXmlFileInput" accept=".xml" style="display: none;">
+                </label>
             </form>
 
             <div class="header-actions">
