@@ -476,6 +476,185 @@
       background: var(--thumb-bg);
       flex-shrink: 0;
     }
+
+    /* ==================== RESPONSIVE MEDIA QUERIES (MOBILE & TABLET) ==================== */
+
+    @media (max-width: 768px) {
+      body {
+        margin: 12px auto;
+        padding: 0 10px;
+      }
+
+      .header-container {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .header-left, .header-right {
+        gap: 6px;
+      }
+
+      .nav-calendar-btn,
+      #langToggleBtn,
+      #themeToggleBtn {
+        padding: 7px 10px;
+        font-size: 13px;
+      }
+
+      .import-box {
+        padding: 10px 12px;
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .import-box select,
+      .import-box input[type="text"],
+      .import-box button {
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      .controls {
+        gap: 6px;
+      }
+
+      .controls button {
+        flex: 1 1 calc(50% - 6px);
+        padding: 10px 8px;
+        font-size: 14px;
+        text-align: center;
+      }
+
+      #startBtn {
+        flex: 1 1 100%;
+        font-weight: bold;
+      }
+
+      /* Comparison Arena on Mobile & Tablet */
+      .compare-arena {
+        width: 100%;
+      }
+
+      .cards {
+        display: flex;
+        flex-direction: row;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+      }
+
+      .card {
+        flex: 1 1 45%;
+        max-width: calc(50% - 12px);
+        min-width: 0;
+        padding: 8px;
+        border-radius: 12px;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .card img {
+        height: auto;
+        aspect-ratio: 3 / 4;
+        max-height: 240px;
+        border-radius: 8px;
+      }
+
+      .card .entry-title {
+        font-size: 13px;
+        margin-top: 6px;
+        line-height: 1.2;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+
+      .card .scores-container {
+        gap: 3px;
+        margin-top: 4px;
+      }
+
+      .card .score-badge,
+      .card .badge-status {
+        font-size: 9px;
+        padding: 2px 4px;
+      }
+
+      .vs {
+        align-self: center;
+        font-size: 16px;
+        margin: 0 -4px;
+        z-index: 2;
+        background: var(--bg);
+        padding: 4px 6px;
+        border-radius: 9999px;
+        border: 1px solid var(--border);
+      }
+
+      .tie-container button {
+        width: 100%;
+        max-width: 320px;
+        padding: 12px;
+        font-size: 16px;
+        font-weight: bold;
+      }
+
+      /* Entry item and Ranking item on Mobile */
+      .entry-item,
+      .ranking-item {
+        padding: 8px;
+        gap: 8px;
+      }
+
+      .entry-thumb,
+      .ranking-item img {
+        width: 44px;
+        height: 60px;
+      }
+
+      .entry-title,
+      .ranking-item .entry-title {
+        font-size: 14px;
+      }
+
+      .rank-number {
+        width: 28px;
+        font-size: 15px;
+      }
+
+      .entry-actions {
+        gap: 4px;
+      }
+
+      .entry-actions button {
+        padding: 6px 8px;
+        font-size: 12px;
+      }
+
+      .modal-content {
+        max-height: 90vh;
+        border-radius: 12px;
+      }
+
+      .candidate-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Extra small mobile (< 400px) */
+    @media (max-width: 400px) {
+      .cards {
+        gap: 4px;
+      }
+      .card {
+        padding: 6px;
+      }
+      .card img {
+        max-height: 190px;
+      }
+    }
   </style>
 </head>
 
