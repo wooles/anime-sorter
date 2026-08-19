@@ -826,6 +826,8 @@ Made in Abyss"
           docTitle: "Anime Ranking",
           langBtnHtml: `${FLAG_PL} PL`,
           calendarBtn: "Calendar",
+          calendarBtnTitle: "Open Anime Watching Calendar",
+          langToggleTitle: "Zmień język na polski / Switch to Polish",
           themeDark: "🌙 Dark Theme",
           themeLight: "☀️ Light Theme",
           mainTitle: "Anime Ranking",
@@ -903,6 +905,8 @@ Made in Abyss"
           docTitle: "Ranking anime",
           langBtnHtml: `${FLAG_US} EN`,
           calendarBtn: "Kalendarz",
+          calendarBtnTitle: "Otwórz Kalendarz Oglądanych Anime",
+          langToggleTitle: "Switch to English / Zmień na angielski",
           themeDark: "🌙 Ciemny motyw",
           themeLight: "☀️ Jasny motyw",
           mainTitle: "Ranking anime",
@@ -1136,6 +1140,9 @@ Made in Abyss"
         document.title = t.docTitle;
 
         langToggleBtn.innerHTML = t.langBtnHtml;
+        langToggleBtn.title = t.langToggleTitle;
+        const navCal = document.getElementById('navCalendarBtn');
+        if (navCal) navCal.title = t.calendarBtnTitle;
         const calBtn = document.getElementById('t_calendarBtn');
         if (calBtn) calBtn.textContent = t.calendarBtn;
         document.getElementById('t_mainTitle').textContent = t.mainTitle;
