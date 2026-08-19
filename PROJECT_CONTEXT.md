@@ -1,87 +1,45 @@
-# PROJECT_CONTEXT.md — anime-sorter (sort.moe)
+# PROJECT_CONTEXT.md — anime-sorter (sort.moe) & livechart-anime-tracker
 
-## 1. Project Overview
-* **Name:** `anime-sorter`
-* **Live URL:** [https://sort.moe/](https://sort.moe/)
-* **Type:** Standalone, 100% client-side single-page application (SPA).
-* **Purpose:** Allows users to rank and sort anime titles using an interactive pairwise comparison (merge sort) algorithm with support for ties, automatic metadata/artwork fetching, and image export.
-
----
-
-## 2. Tech Stack & Architecture
-* **Frontend:** Vanilla HTML5, CSS3 (CSS Variables for themes), Vanilla JavaScript (ES6+ / IIFE pattern).
-* **Storage:** Browser `localStorage` (caching metadata/covers, persisting list items, language, and theme).
-* **External Libraries (CDN):**
-  * `html2canvas` (v1.4.1) — client-side PNG image rendering of the ranking board.
-* **Architecture Principles:**
-  * **Zero-backend:** All API calls and storage operations execute directly in the user's browser.
-  * **Rate-limiting resilience:** Multi-threaded fetching (concurrency = 5) with rate-limiting safety.
-  * **CORS handling:** Base64 image conversion with proxy fallbacks (`wsrv.nl`, Google proxy, etc.) for canvas exports.
+## 1. Ecosystem Overview
+* **Primary App:** `anime-sorter` (Live: [https://sort.moe/](https://sort.moe/)) — Interactive pairwise merge-ranking anime tool.
+* **Companion App:** `livechart-anime-tracker` (Live: [https://livechart-anime-tracker.onrender.com/](https://livechart-anime-tracker.onrender.com/)) — Full-screen monthly anime watching calendar with exact LiveChart broadcasting schedules powered by .NET 8 + `Tenrai.Net 3.1.0`.
+* **Author / GitHub:** `wooles` ([https://github.com/wooles](https://github.com/wooles))
+  * Sorter Repo: `https://github.com/wooles/anime-sorter.git`
+  * Calendar Repo: `https://github.com/wooles/livechart-anime-tracker.git`
 
 ---
 
-## 3. Core Features & Capabilities
-1. **Watchlist Import:**
-   * **AniList:** Fetching currently watching anime via AniList GraphQL API by username.
-   * **Kitsu:** Fetching currently watching anime via Kitsu JSON:API by username.
-   * **MyAnimeList:** Fetching currently watching anime via MyAnimeList load.json endpoint with community scores.
-   * **MyAnimeList XML:** Parsing `.xml` export files locally, filtering items with status `Watching` (`1`), extracting `series_title` and `series_animedb_id`.
-2. **Manual Title Input:** Textarea supporting line breaks and semicolon-separated title lists.
-3. **Triple-Source Metadata & Artwork Engine:**
-   * **MAL ID Resolution:** When importing from MAL XML or API, directly resolves entries via AniList GraphQL `Media(idMal: $idMal)` before falling back to string queries.
-   * **Triple Scores:** Simultaneously queries and displays community scores from MyAnimeList, AniList, and Kitsu (`MAL: ★ X.XX • AniList: ★ XX% • Kitsu: ★ XX%`).
-   * **Status Badges:** Displays anime status badges (*Currently Airing*, *Finished*, *Upcoming / Not Yet Released*).
-4. **Season Disambiguation Picker:** In-app modal search to switch franchise seasons, sequels, or alternate adaptations.
-5. **Interactive Sorting Engine:**
-   * Pairwise merge sort with progress tracking.
-   * `🤝 Tie` button grouping equivalent titles into shared ranks.
-6. **Export & Sharing:**
-   * High-resolution PNG image download.
-   * Instant temporary upload to Litterbox (Catbox.moe, 72h expiry) with 1-click URL copy.
-7. **UI / UX:**
-   * Bilingual localization (EN / PL) with persistent state.
-   * Dark / Light mode with OS preference detection.
+## 2. Multi-Project Architecture
+* **anime-sorter (`C:\Users\Piotrek\Desktop\sorter`)**:
+  * **Frontend:** Standalone HTML5 / CSS3 / Vanilla JS SPA.
+  * **Storage:** Browser `localStorage` (caching metadata/covers, persisting list items, language, and theme).
+  * **Integrations:** Watchlist import (AniList, Kitsu, MyAnimeList XML/API), pairwise merge sort, ties, season picker, Litterbox export, direct navigation button to Calendar (`https://livechart-anime-tracker.onrender.com/`).
+* **livechart-anime-tracker (`C:\Users\Piotrek\Desktop\kalendarz`)**:
+  * **Backend:** .NET 8 Minimal API (C#) using **Tenrai.Net 3.1.0** and **Ical.Net 4.3.1**.
+  * **Cloud Deployment:** Hosted on Render.com (`Dockerfile` + `render.yaml`) with dynamic port binding.
+  * **Features:** 7-column calendar (Mon-Sun), minute-accurate LiveChart schedules, timezone conversion (`Europe/Warsaw`), watching list exclusivity, `.ics` exports, direct navigation button to Sorter (`https://sort.moe`).
 
 ---
 
-## 4. API Reference & Data Flow
-
-### AniList GraphQL API (`https://graphql.anilist.co`)
-* **Watchlist query:** `MediaListCollection(userName: $userName, type: ANIME, status: CURRENT)`
-* **MAL ID lookup:** `Media(idMal: $idMal, type: ANIME)`
-* **Text search query:** `Page(page: 1, perPage: 10) { media(search: $search, type: ANIME) }`
-
-### Kitsu JSON:API (`https://kitsu.io/api/edge/`)
-* **User ID lookup:** `users?filter[name]=...`
-* **Library entries:** `library-entries?filter[userId]=...&filter[status]=current&include=anime`
-* **Text search query:** `anime?filter[text]=...`
-
-### MyAnimeList Search Prefix & Proxy (`https://myanimelist.net/search/prefix.json`)
-* **Watchlist API:** `https://myanimelist.net/animelist/<username>/load.json?status=1` (with community `anime_score_val`)
-* **Search Prefix:** `https://myanimelist.net/search/prefix.json?type=anime&keyword=<query>` (proxied locally via `/api/mal/search` and corsproxy fallback)
-
-### Litterbox API (`https://litterbox.catbox.moe/resources/internals/api.php`)
-* **Method:** `POST` (multipart form-data: `reqtype=fileupload`, `time=72h`, `fileToUpload=[blob]`).
+## 3. Workflow Trigger & Auto-Onboarding Rule ("kontynuuj anisort")
+Whenever the user types `"kontynuuj"`, `"kontynuuj anisort"`, `"kontynuuj kalendarz"`, or similar in any session:
+1. **Recognize Dual-Project Scope:** Immediately recognize that the user is working on both `anime-sorter` and `livechart-anime-tracker`.
+2. **Synchronize Git Repositories:**
+   * In `C:\Users\Piotrek\Desktop\sorter`: check if `.git` exists, clone if missing (`git clone https://github.com/wooles/anime-sorter.git .`), or pull latest (`git pull origin main`).
+   * In `C:\Users\Piotrek\Desktop\kalendarz`: check if `.git` exists, clone if missing (`git clone https://github.com/wooles/livechart-anime-tracker.git .`), or pull latest (`git pull origin main`).
+3. **Execute Dependency & Workspace Setup:**
+   * Run `.\setup.ps1` to restore .NET SDK packages (`dotnet restore` for `LiveChartTracker.csproj` + `Tenrai.Net 3.1.0` and `MalProxy.csproj`).
+   * Verify Python, Git, and .NET environment tools.
+   * Ensure `.vscode/` configurations (extensions recommendations and editor settings) are populated in both directories.
+4. **Verify Live Endpoints & Bindings:**
+   * Sorter (`sort.moe`) ➔ Calendar (`https://livechart-anime-tracker.onrender.com/`)
+   * Calendar ➔ Sorter (`https://sort.moe/`)
+5. **Report Complete Readiness:** Provide a concise status summary to the user confirming both repositories are synced, packages restored, and ready for work.
 
 ---
 
-## 5. Storage Schema (`localStorage`)
-* `Active Entries` — Session-only memory (`entries = []` on page load, fresh start on each visit).
-* `manual-anime-cover:v54:<normalized_title>` — cached metadata object.
-* `manual-anime-sorter:theme:v1` — `'dark'` | `'light'`.
-* `manual-anime-sorter:lang:v1` — `'en'` | `'pl'`.
-
----
-
-## 6. Coding & Modification Rules for Agents
-* **Workflow Trigger & Auto-Onboarding:** When the user says `"kontynuuj"`, `"kontynuuj anisort"`, or similar on any computer:
-  1. Recognize the request for the `anime-sorter` (sort.moe) project.
-  2. If the current directory is empty or missing project files, automatically clone the repository: `git clone https://github.com/wooles/anime-sorter.git .`
-  3. Inspect the local environment (check Git status/branches, verify if Python/.NET are available, run `setup.ps1` or restore dependencies if needed).
-  4. Ensure recommended VS Code extensions/settings are available in `.vscode/`.
-  5. Report to the user the current status of the project, git branch synchronization, and readiness to continue development.
-* **GitHub Push Rule:** Always ask the user for explicit confirmation before executing `git push` to GitHub.
-* **Complete Code Only:** Always maintain and deliver the entire `index.html` file without placeholders, truncation, or omission comments (`// ... rest of code`).
-* **List Reset Behavior:** Any new import or manual add action must clear existing entries (`entries = []`) to prevent duplicate bloat.
-* **No Server Dependencies for Client App:** The core application must run standalone on GitHub Pages / static hosting without requiring backend servers.
-* **Concurrency & APIs:** Uses 12-thread parallel worker pool with Tenrai REST API (`api.tenrai.org`), AniList GraphQL, and Kitsu JSON:API.
+## 4. Coding & Modification Guidelines
+* **Complete Code Only:** Always maintain and deliver complete files without placeholders or omission comments.
+* **List Reset Behavior in Sorter:** Any new import or manual add action must clear existing entries (`entries = []`) to prevent duplicate bloat.
+* **Tenrai.Net Integrity:** Preserve `Tenrai.Net` package integration for MyAnimeList interactions in the .NET backend.
+* **Port Compatibility:** Always bind to dynamic `$PORT` environment variable (`Environment.GetEnvironmentVariable("PORT") ?? "5000"`) for cloud hosting.

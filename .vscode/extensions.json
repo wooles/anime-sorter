@@ -1,8 +1,1 @@
-{
-  "recommendations": [
-    "ritwickdey.liveserver",
-    "esbenp.prettier-vscode",
-    "ms-python.python",
-    "ms-dotnettools.csharp"
-  ]
-}
+﻿{ "recommendations": ["ms-dotnettools.csharp", "ms-dotnettools.csdevkit", "ms-python.python", "ritwickdey.liveserver"] }
