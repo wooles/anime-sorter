@@ -39,30 +39,7 @@ A modern, fast, and feature-packed web application for interactive anime sorting
 
 ---
 
-## 🚀 Development & Workflow
 
-### Onboarding Command:
-Whenever you start a session in any agent environment, you can type:
-```text
-kontynuuj anisort
-```
-This command automatically:
-1. Clones/pulls both repositories (`wooles/anime-sorter` and `wooles/livechart-anime-tracker`).
-2. Restores all .NET dependencies, Tenrai.Net packages, and configurations.
-3. Sets up `.vscode` development environments and bindings.
-4. Reports full workspace readiness.
-
-### Quick Setup:
-```powershell
-# Run workspace setup script
-.\setup.ps1
-
-# Start local development server
-python server.py
-# Or open index.html directly in your browser
-```
-
----
 
 ## 🔗 Related Projects
 
