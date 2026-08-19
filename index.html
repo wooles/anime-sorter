@@ -69,10 +69,40 @@
 
     .header-container {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
       align-items: center;
       gap: 10px;
       margin-bottom: 12px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-calendar-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      font-size: 15px;
+      font-weight: bold;
+      padding: 9px 14px;
+      border-radius: 10px;
+      background: var(--btn-secondary);
+      color: #ffffff;
+      transition: opacity 0.15s, background-color 0.2s;
+    }
+
+    .nav-calendar-btn:hover {
+      opacity: 0.85;
     }
 
     h1 {
@@ -451,8 +481,15 @@
 
 <body>
   <div class="header-container">
-    <button id="langToggleBtn" class="secondary" type="button" title="Zmień język / Change language"></button>
-    <button id="themeToggleBtn" class="secondary" type="button">🌙 Dark Theme</button>
+    <div class="header-left">
+      <a id="navCalendarBtn" href="http://localhost:5000" class="nav-calendar-btn" title="Otwórz Kalendarz Oglądanych Anime / Open Anime Watching Calendar">
+        📅 <span id="t_calendarBtn">Kalendarz</span>
+      </a>
+    </div>
+    <div class="header-right">
+      <button id="langToggleBtn" class="secondary" type="button" title="Zmień język / Change language"></button>
+      <button id="themeToggleBtn" class="secondary" type="button">🌙 Dark Theme</button>
+    </div>
   </div>
 
   <section id="setup">
@@ -609,6 +646,7 @@ Made in Abyss"
         en: {
           docTitle: "Anime Ranking",
           langBtnHtml: `${FLAG_PL} PL`,
+          calendarBtn: "Calendar",
           themeDark: "🌙 Dark Theme",
           themeLight: "☀️ Light Theme",
           mainTitle: "Anime Ranking",
@@ -685,6 +723,7 @@ Made in Abyss"
         pl: {
           docTitle: "Ranking anime",
           langBtnHtml: `${FLAG_US} EN`,
+          calendarBtn: "Kalendarz",
           themeDark: "🌙 Ciemny motyw",
           themeLight: "☀️ Jasny motyw",
           mainTitle: "Ranking anime",
@@ -910,6 +949,8 @@ Made in Abyss"
         document.title = t.docTitle;
 
         langToggleBtn.innerHTML = t.langBtnHtml;
+        const calBtn = document.getElementById('t_calendarBtn');
+        if (calBtn) calBtn.textContent = t.calendarBtn;
         document.getElementById('t_mainTitle').textContent = t.mainTitle;
         document.getElementById('t_mainSubtitle').textContent = t.mainSubtitle;
         document.getElementById('t_importBoxLabel').textContent = t.importBoxLabel;
