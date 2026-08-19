@@ -1,4 +1,4 @@
-﻿// LiveChart Anime Watching Calendar - sort.moe/calendar
+// LiveChart Anime Watching Calendar - sort.moe/calendar
 
 const state = {
     platform: 'AniList',
@@ -200,21 +200,23 @@ async function handleMalXmlFile(event) {
     }
 }
 
+const BACKEND_API_URL = 'https://livechart-anime-tracker.onrender.com';
+
 async function fetchCalendar() {
     showLoading(`Loading anime calendar from ${state.platform} for ${state.username}...`);
     try {
         let episodes = [];
         let totalWatching = 0;
 
-        // If using previously uploaded MAL entries
-        if (state.platform === 'MyAnimeList' && state.uploadedMalEntries && state.uploadedMalEntries.length > 0) {
-            const res = await fetchSchedulesForMalList(state.uploadedMalEntries, state.year, state.month);
-            episodes = res.episodes;
-            totalWatching = res.totalWatching;
-        } else {
-            // Try backend API endpoint first (when .NET Tenrai backend is running)
+        // 1. Direct query to live .NET 8 + Tenrai.Net backend (Render.com / Local)
+        const backendUrls = [
+            `${BACKEND_API_URL}/api/calendar/month?platform=${encodeURIComponent(state.platform)}&username=${encodeURIComponent(state.username)}&year=${state.year}&month=${state.month}`,
+            `/api/calendar/month?platform=${encodeURIComponent(state.platform)}&username=${encodeURIComponent(state.username)}&year=${state.year}&month=${state.month}`
+        ];
+
+        for (const bUrl of backendUrls) {
             try {
-                const apiRes = await fetch(`/api/calendar/month?platform=${encodeURIComponent(state.platform)}&username=${encodeURIComponent(state.username)}&year=${state.year}&month=${state.month}`);
+                const apiRes = await fetch(bUrl);
                 if (apiRes.ok) {
                     const apiData = await apiRes.json();
                     state.calendarData = apiData;
@@ -222,20 +224,21 @@ async function fetchCalendar() {
                     return;
                 }
             } catch {}
+        }
 
-            if (state.platform === 'AniList') {
-                const res = await fetchAniListWatching(state.username, state.year, state.month);
-                episodes = res.episodes;
-                totalWatching = res.totalWatching;
-            } else if (state.platform === 'MyAnimeList') {
-                const res = await fetchMalWatching(state.username, state.year, state.month);
-                episodes = res.episodes;
-                totalWatching = res.totalWatching;
-            } else if (state.platform === 'Kitsu') {
-                const res = await fetchKitsuWatching(state.username, state.year, state.month);
-                episodes = res.episodes;
-                totalWatching = res.totalWatching;
-            }
+        // 2. Client-side fallback if backend is unreachable
+        if (state.platform === 'AniList') {
+            const res = await fetchAniListWatching(state.username, state.year, state.month);
+            episodes = res.episodes;
+            totalWatching = res.totalWatching;
+        } else if (state.platform === 'MyAnimeList') {
+            const res = await fetchMalWatching(state.username, state.year, state.month);
+            episodes = res.episodes;
+            totalWatching = res.totalWatching;
+        } else if (state.platform === 'Kitsu') {
+            const res = await fetchKitsuWatching(state.username, state.year, state.month);
+            episodes = res.episodes;
+            totalWatching = res.totalWatching;
         }
 
         const gridData = buildMonthlyGrid(state.year, state.month, episodes, state.username, state.platform, totalWatching);
