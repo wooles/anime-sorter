@@ -912,6 +912,14 @@ Made in Abyss"
         }
       });
 
+      const navCalendarBtn = document.getElementById('navCalendarBtn');
+      if (navCalendarBtn) {
+        navCalendarBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          window.location.href = './calendar/';
+        });
+      }
+
       langToggleBtn.addEventListener('click', toggleLanguage);
       themeToggleBtn.addEventListener('click', toggleTheme);
       importWatchlistBtn.addEventListener('click', importUserWatchlist);
