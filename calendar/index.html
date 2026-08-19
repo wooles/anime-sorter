@@ -1,0 +1,146 @@
+﻿<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anime Watching Calendar | sort.moe</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
+</head>
+<body>
+    <!-- TOP HEADER -->
+    <header class="app-header">
+        <div class="header-container">
+            <div class="brand">
+                <span class="brand-icon">📅</span>
+                <div class="brand-text">
+                    <span class="brand-title">ANIME<span class="highlight">.CALENDAR</span></span>
+                </div>
+            </div>
+
+            <!-- USER FORM -->
+            <form id="userForm" class="user-input-form" onsubmit="event.preventDefault(); handleLoadCalendar();">
+                <select id="platformSelect" class="form-select">
+                    <option value="AniList" selected>AniList</option>
+                    <option value="MyAnimeList">MyAnimeList</option>
+                    <option value="Kitsu">Kitsu</option>
+                </select>
+                <div class="input-wrapper">
+                    <input type="text" id="usernameInput" class="form-control" placeholder="Username (e.g. wooles)" required autocomplete="on">
+                </div>
+                <button type="submit" id="loadBtn" class="btn btn-primary">Load</button>
+            </form>
+
+            <div class="header-actions">
+                <span class="stat-pill stat-clock" id="localClockBadge" title="Your current local time">⏰ --:--:--</span>
+                <a href="/" class="btn btn-outline btn-sm" title="Go to Anime Ranking Sorter">
+                    🏆 Sorter
+                </a>
+                <button id="exportIcsBtn" class="btn btn-outline btn-sm" title="Export calendar to .ics file">
+                    📥 .ics
+                </button>
+                <button id="themeToggle" class="btn-icon" title="Toggle theme">
+                    <span id="themeIcon">🌙</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- CALENDAR NAV & USER STATS -->
+    <section class="calendar-toolbar">
+        <div class="toolbar-container">
+            <div class="month-navigation">
+                <button id="prevMonthBtn" class="btn btn-secondary btn-sm nav-btn">&larr; Prev</button>
+                <h2 id="currentMonthDisplay" class="month-title">August 2026</h2>
+                <button id="nextMonthBtn" class="btn btn-secondary btn-sm nav-btn">Next &rarr;</button>
+                <button id="todayBtn" class="btn btn-outline btn-sm">Today</button>
+            </div>
+
+            <div id="calendarStats" class="calendar-stats hidden">
+                <span class="user-badge-text">User: <strong id="statsUsername">wooles</strong> (<span id="statsPlatform">AniList</span>)</span>
+                <span class="stat-pill stat-watching">Watching: <strong id="statsWatchingCount">0</strong></span>
+                <span class="stat-pill stat-tz" id="timezoneBadge">Local Time</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- MAIN CALENDAR CONTAINER (FULL SCREEN WIDTH) -->
+    <main class="calendar-wrapper">
+        <!-- Weekday Headers -->
+        <div class="weekdays-grid">
+            <div class="weekday-cell">Monday</div>
+            <div class="weekday-cell">Tuesday</div>
+            <div class="weekday-cell">Wednesday</div>
+            <div class="weekday-cell">Thursday</div>
+            <div class="weekday-cell">Friday</div>
+            <div class="weekday-cell weekend">Saturday</div>
+            <div class="weekday-cell weekend">Sunday</div>
+        </div>
+
+        <!-- Days Grid -->
+        <div id="calendarGrid" class="days-grid hidden">
+            <!-- 35 or 42 Day Cells injected via JS -->
+        </div>
+
+        <!-- Initial Empty State -->
+        <div id="initialState" class="empty-state">
+            <div class="empty-icon">📺</div>
+            <h3>Enter your username</h3>
+            <p>Enter your <strong>AniList</strong>, <strong>MyAnimeList</strong>, or <strong>Kitsu</strong> username above and click <em>Load</em> to view your live anime release schedule.</p>
+        </div>
+    </main>
+
+    <!-- ANIME DETAIL MODAL -->
+    <div id="detailModal" class="modal-backdrop hidden">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 id="modalTitle">Episode Details</h3>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-flex">
+                    <img id="modalPoster" src="" alt="Poster" class="modal-poster">
+                    <div class="modal-info">
+                        <h2 id="modalAnimeTitle">Anime Title</h2>
+                        <h4 id="modalRomajiTitle" class="text-muted">Romaji</h4>
+                        
+                        <div class="modal-highlight-box">
+                            <span class="modal-ep-badge" id="modalEpBadge">Episode 8</span>
+                            <span class="modal-air-time" id="modalAirTime">August 19, 2026 at 18:30 (Local Time)</span>
+                        </div>
+
+                        <div class="modal-meta-row">
+                            <span class="meta-tag" id="modalFormat">TV</span>
+                            <span class="meta-tag" id="modalProgress">Progress: 5/12</span>
+                            <span class="meta-tag" id="modalScore">⭐ 84%</span>
+                        </div>
+
+                        <div class="modal-synopsis-box">
+                            <p id="modalSynopsis">Synopsis...</p>
+                        </div>
+
+                        <div class="modal-links" id="modalLinks">
+                            <!-- Links to MAL, AniList, Kitsu, LiveChart -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOADING OVERLAY -->
+    <div id="loadingOverlay" class="loading-overlay hidden">
+        <div class="spinner"></div>
+        <p id="loadingText">Loading calendar...</p>
+    </div>
+
+    <footer class="app-footer">
+        <p>Anime Watching Calendar &bull; Powered by <a href="/" style="color: var(--accent-blue); text-decoration: none;">sort.moe</a> &bull; LiveChart TV Schedules in Local Time</p>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
