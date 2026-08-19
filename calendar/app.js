@@ -1,4 +1,4 @@
-﻿// LiveChart Anime Watching Calendar - Pure Client-Side Engine for GitHub Pages (sort.moe/calendar)
+﻿// LiveChart Anime Watching Calendar - sort.moe/calendar
 
 const state = {
     platform: 'AniList',
@@ -58,7 +58,6 @@ function startLocalClock() {
 }
 
 function setupEventListeners() {
-    // Theme Toggle
     document.getElementById('themeToggle').addEventListener('click', () => {
         const current = document.documentElement.getAttribute('data-theme');
         const next = current === 'dark' ? 'light' : 'dark';
@@ -67,7 +66,6 @@ function setupEventListeners() {
         document.getElementById('themeIcon').textContent = next === 'dark' ? '🌙' : '☀️';
     });
 
-    // Month Navigation
     document.getElementById('prevMonthBtn').addEventListener('click', () => {
         state.month--;
         if (state.month < 1) {
@@ -96,7 +94,6 @@ function setupEventListeners() {
         if (state.username) fetchCalendar();
     });
 
-    // Export ICS (Client-side)
     document.getElementById('exportIcsBtn').addEventListener('click', () => {
         if (!state.calendarData || !state.calendarData.episodes || state.calendarData.episodes.length === 0) {
             alert('No episodes loaded to export. Please load your calendar first.');
@@ -105,7 +102,6 @@ function setupEventListeners() {
         generateAndDownloadIcs(state.calendarData);
     });
 
-    // Close Modal on backdrop click
     document.getElementById('detailModal').addEventListener('click', (e) => {
         if (e.target.id === 'detailModal') {
             closeModal();
@@ -136,13 +132,22 @@ function handleLoadCalendar() {
     fetchCalendar();
 }
 
-// ==================== CALENDAR DATA FETCHING ====================
-
 async function fetchCalendar() {
     showLoading(`Loading anime calendar from ${state.platform} for ${state.username}...`);
     try {
         let episodes = [];
         let totalWatching = 0;
+
+        // Try backend API endpoint first (when .NET Tenrai backend is running)
+        try {
+            const apiRes = await fetch(`/api/calendar/month?platform=${encodeURIComponent(state.platform)}&username=${encodeURIComponent(state.username)}&year=${state.year}&month=${state.month}`);
+            if (apiRes.ok) {
+                const apiData = await apiRes.json();
+                state.calendarData = apiData;
+                renderCalendar(apiData);
+                return;
+            }
+        } catch {}
 
         if (state.platform === 'AniList') {
             const res = await fetchAniListWatching(state.username, state.year, state.month);
@@ -169,7 +174,7 @@ async function fetchCalendar() {
     }
 }
 
-// 1. AniList Client-side GraphQL
+// 1. AniList GraphQL (Direct browser support)
 async function fetchAniListWatching(username, year, month) {
     const userQuery = `
     query ($userName: String) {
@@ -316,11 +321,11 @@ async function fetchAniListWatching(username, year, month) {
     return { episodes, totalWatching };
 }
 
-// 2. MyAnimeList Watching (via Tenrai.Net proxy or direct MAL endpoints + LiveChart schedule matching)
+// 2. MyAnimeList Watching
 async function fetchMalWatching(username, year, month) {
     let watching = [];
     
-    // Endpoint 1: Backend MAL proxy (/api/mal/watchlist)
+    // Endpoint 1: Backend MAL proxy / Tenrai.Net
     try {
         const res = await fetch(`/api/mal/watchlist/${encodeURIComponent(username)}`);
         if (res.ok) {
@@ -337,51 +342,13 @@ async function fetchMalWatching(username, year, month) {
         }
     } catch {}
 
-    // Endpoint 2: Direct public MAL load.json through CORS proxies
     if (watching.length === 0) {
-        const malUrl = `https://myanimelist.net/animelist/${encodeURIComponent(username)}/load.json?status=1`;
-        const proxies = [
-            `/api/mal/watchlist/${encodeURIComponent(username)}`,
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(malUrl)}`,
-            `https://corsproxy.io/?url=${encodeURIComponent(malUrl)}`
-        ];
-
-        for (const url of proxies) {
-            try {
-                const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-                if (!res.ok) continue;
-                let data = await res.json();
-                if (typeof data === 'string') {
-                    try { data = JSON.parse(data); } catch {}
-                }
-                if (data && data.contents) data = data.contents;
-                if (Array.isArray(data) && data.length) {
-                    watching = data.map(item => ({
-                        malId: item.anime_id || item.malId,
-                        title: item.anime_title_eng || item.anime_title || item.title,
-                        image: item.anime_image_path || item.coverUrl,
-                        watched: item.num_watched_episodes || item.watchedEpisodes || 0,
-                        score: item.score || 0,
-                        airingStatus: item.anime_airing_status !== undefined ? item.anime_airing_status : 1
-                    }));
-                    break;
-                }
-            } catch {}
-        }
-    }
-
-    // Fallback: AniList with matching username
-    if (watching.length === 0) {
-        try {
-            return await fetchAniListWatching(username, year, month);
-        } catch {}
-        throw new Error(`Failed to load watching anime for MyAnimeList user "${username}". Make sure your anime list is public on MyAnimeList.`);
+        throw new Error(`MyAnimeList blocks direct client-side browser requests on static GitHub Pages. Please run the local Tenrai.Net backend (run.bat) or use AniList / Kitsu on sort.moe.`);
     }
 
     const totalWatching = watching.length;
     const malIds = watching.map(w => w.malId).filter(Boolean);
 
-    // Query exact live airing schedules from AniList for these MAL IDs
     const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
     startOfMonth.setUTCDate(startOfMonth.getUTCDate() - 2);
     const endOfMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0));
@@ -407,10 +374,7 @@ async function fetchMalWatching(username, year, month) {
     }`;
 
     const aniIds = [];
-    const aniMediaMap = new Map();
-
-    const chunks = chunkArray(malIds, 40);
-    for (const chunk of chunks) {
+    for (const chunk of chunkArray(malIds, 40)) {
         try {
             const mRes = await fetch("https://graphql.anilist.co", {
                 method: "POST",
@@ -420,18 +384,13 @@ async function fetchMalWatching(username, year, month) {
             if (mRes.ok) {
                 const mData = await mRes.json();
                 (mData.data?.Page?.media || []).forEach(m => {
-                    if (m.id && m.idMal) {
-                        aniMediaMap.set(m.idMal, m);
-                        aniIds.push(m.id);
-                    }
+                    if (m.id && m.idMal) aniIds.push(m.id);
                 });
             }
         } catch {}
     }
 
     const episodes = [];
-    const processedMal = new Set();
-
     if (aniIds.length > 0) {
         const schedQuery = `
         query ($page: Int, $mediaIds: [Int], $startSec: Int, $endSec: Int) {
@@ -489,7 +448,6 @@ async function fetchMalWatching(username, year, month) {
                             aniListUrl: media.siteUrl,
                             userProgress: userEntry?.watched || 0
                         });
-                        if (media.idMal) processedMal.add(media.idMal);
                     });
                 }
             } catch {}
