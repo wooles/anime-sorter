@@ -1,13 +1,13 @@
-﻿# 🏆 Anime Sorter (sort.moe)
+# 🏆 Anime Sorter (sort.moe)
 
 [![Live Web App](https://img.shields.io/badge/Live-sort.moe-blue?style=for-the-badge&logo=google-chrome&logoColor=white)](https://sort.moe/)
-[![Calendar Ecosystem](https://img.shields.io/badge/📅_Calendar-LiveChart_Tracker-6c5ce7?style=for-the-badge)](https://livechart-anime-tracker.onrender.com/)
+[![Calendar Ecosystem](https://img.shields.io/badge/📅_Calendar-sort.moe/calendar-6c5ce7?style=for-the-badge)](https://sort.moe/calendar)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
 A modern, fast, and feature-packed web application for interactive anime sorting, pairwise merge ranking, and seasonal schedule tracking.
 
 👉 **Try it online:** **[https://sort.moe/](https://sort.moe/)**  
-👉 **Anime Watching Calendar:** **[https://livechart-anime-tracker.onrender.com/](https://livechart-anime-tracker.onrender.com/)**
+👉 **Anime Watching Calendar:** **[https://sort.moe/calendar](https://sort.moe/calendar)**
 
 ---
 
