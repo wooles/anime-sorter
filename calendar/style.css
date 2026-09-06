@@ -470,6 +470,43 @@ html, body {
     gap: 4px;
 }
 
+.card-time-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.card-hide-btn {
+    background: transparent;
+    border: none;
+    padding: 1px 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    opacity: 0.45;
+    border-radius: 3px;
+    transition: all 0.15s ease;
+    line-height: 1;
+}
+
+.anime-card:hover .card-hide-btn {
+    opacity: 0.85;
+}
+
+.card-hide-btn:hover {
+    opacity: 1 !important;
+    color: #ef4444;
+    transform: scale(1.15);
+    background: rgba(239, 68, 68, 0.12);
+}
+
+.card-hide-btn svg {
+    display: block;
+}
+
 .card-air-time {
     font-size: 0.72rem;
     font-weight: 700;
@@ -563,6 +600,10 @@ html, body {
 .schedule-columns-container.density-compact .card-footer {
     font-size: 0.60rem;
 }
+.schedule-columns-container.density-compact .card-hide-btn svg {
+    width: 12px;
+    height: 12px;
+}
 
 /* Dense Density (10-13 eps - e.g. All Airing Anime / High Episode Count) */
 .schedule-columns-container.density-dense {
@@ -611,6 +652,10 @@ html, body {
 .schedule-columns-container.density-dense .card-bookmark-icon {
     font-size: 0.65rem;
 }
+.schedule-columns-container.density-dense .card-hide-btn svg {
+    width: 11px;
+    height: 11px;
+}
 
 /* Ultra-Dense Density (14+ eps) */
 .schedule-columns-container.density-ultra-dense {
@@ -658,6 +703,10 @@ html, body {
 }
 .schedule-columns-container.density-ultra-dense .card-bookmark-icon {
     font-size: 0.60rem;
+}
+.schedule-columns-container.density-ultra-dense .card-hide-btn svg {
+    width: 10px;
+    height: 10px;
 }
 
 /* EMPTY STATES & MODALS */
@@ -948,6 +997,136 @@ html, body {
 .modal-links a:hover {
     border-color: var(--accent-blue);
     color: var(--accent-blue);
+}
+
+/* ==================== HIDDEN ANIME MODAL ==================== */
+.modal-hidden-card {
+    max-width: 520px;
+    width: 92%;
+    max-height: 82vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.hidden-modal-desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.hidden-anime-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 50vh;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.hidden-anime-list::-webkit-scrollbar {
+    width: 5px;
+}
+
+.hidden-anime-list::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 4px;
+}
+
+.hidden-anime-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 10px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    transition: all 0.12s ease;
+}
+
+.hidden-anime-item:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-hover);
+}
+
+.hidden-anime-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+
+.hidden-anime-poster {
+    width: 34px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 3px;
+    background: var(--poster-bg);
+    flex-shrink: 0;
+}
+
+.hidden-anime-titles {
+    min-width: 0;
+    flex: 1;
+}
+
+.hidden-anime-title {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--card-title-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.25;
+}
+
+.hidden-anime-sub {
+    font-size: 0.70rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.hidden-empty-state {
+    text-align: center;
+    padding: 2.5rem 1rem;
+    color: var(--text-muted);
+}
+
+.hidden-empty-icon {
+    font-size: 2.4rem;
+    margin-bottom: 8px;
+    opacity: 0.7;
+}
+
+.hidden-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border-color);
+    margin-top: 8px;
+}
+
+.btn-restore {
+    background: rgba(37, 99, 235, 0.12);
+    color: var(--accent-blue);
+    border: 1px solid rgba(37, 99, 235, 0.3);
+    font-size: 0.75rem;
+    padding: 0.3rem 0.65rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.12s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.btn-restore:hover {
+    background: var(--accent-blue);
+    color: #ffffff;
+    border-color: var(--accent-blue);
 }
 
 .loading-overlay {

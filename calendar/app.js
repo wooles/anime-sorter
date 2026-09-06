@@ -9,7 +9,8 @@ const state = {
     calendarData: null,
     allEpisodes: [],
     loadedMonths: new Set(), // Tracks "YYYY-MM"
-    titleLang: localStorage.getItem('anime_cal_title_lang') || 'english' // 'english' or 'romaji'
+    titleLang: localStorage.getItem('anime_cal_title_lang') || 'english', // 'english' or 'romaji'
+    hiddenAnimeMap: new Map() // key -> animeObj
 };
 
 function getTodayMidnight() {
@@ -34,10 +35,224 @@ function updateTitleLangButton() {
     }
 }
 
+// ==================== HIDDEN ANIME STATE & HANDLERS ====================
+
+function getAnimeKey(ep) {
+    if (!ep) return '';
+    if (ep.aniListId) return `ani_${ep.aniListId}`;
+    if (ep.malId) return `mal_${ep.malId}`;
+    if (ep.kitsuId) return `kitsu_${ep.kitsuId}`;
+    const t = (ep.titleRomaji || ep.titleEnglish || ep.displayTitle || '').trim().toLowerCase();
+    return `title_${t}`;
+}
+
+function isAnimeHidden(ep) {
+    if (!ep || !state.hiddenAnimeMap || state.hiddenAnimeMap.size === 0) return false;
+    const key = getAnimeKey(ep);
+    if (state.hiddenAnimeMap.has(key)) return true;
+    if (ep.aniListId && state.hiddenAnimeMap.has(`ani_${ep.aniListId}`)) return true;
+    if (ep.malId && state.hiddenAnimeMap.has(`mal_${ep.malId}`)) return true;
+    return false;
+}
+
+function loadHiddenAnime() {
+    try {
+        const raw = localStorage.getItem('anime_cal_hidden_series');
+        if (raw) {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+                state.hiddenAnimeMap = new Map(list.map(item => [item.key, item]));
+            }
+        }
+    } catch (e) {
+        console.warn("Could not load hidden anime:", e);
+        state.hiddenAnimeMap = new Map();
+    }
+}
+
+function saveHiddenAnime() {
+    try {
+        const arr = Array.from(state.hiddenAnimeMap.values());
+        localStorage.setItem('anime_cal_hidden_series', JSON.stringify(arr));
+    } catch (e) {
+        console.warn("Could not save hidden anime:", e);
+    }
+}
+
+function updateHiddenAnimeButton() {
+    const count = state.hiddenAnimeMap ? state.hiddenAnimeMap.size : 0;
+    const labelEl = document.getElementById('hiddenAnimeLabel');
+    if (labelEl) {
+        const isPolish = (navigator.language && navigator.language.startsWith('pl')) || !navigator.language;
+        labelEl.textContent = isPolish ? `Ukryte (${count})` : `Hidden (${count})`;
+    }
+    const countModalEl = document.getElementById('hiddenModalCount');
+    if (countModalEl) {
+        countModalEl.textContent = count;
+    }
+}
+
+function hideAnimeSeries(ep) {
+    if (!ep) return;
+    const key = getAnimeKey(ep);
+    const titleEng = ep.titleEnglish || ep.titleRomaji || ep.displayTitle || '';
+    const titleRom = ep.titleRomaji || ep.titleEnglish || ep.displayTitle || '';
+    const animeObj = {
+        key: key,
+        titleEnglish: titleEng,
+        titleRomaji: titleRom,
+        displayTitle: titleEng || titleRom,
+        coverImage: ep.coverImage || '',
+        aniListId: ep.aniListId || null,
+        malId: ep.malId || null,
+        kitsuId: ep.kitsuId || null,
+        format: ep.format || 'TV',
+        totalEpisodes: ep.totalEpisodes || null,
+        hiddenAt: Date.now()
+    };
+
+    state.hiddenAnimeMap.set(key, animeObj);
+    saveHiddenAnime();
+    updateHiddenAnimeButton();
+    renderSchedule();
+}
+
+function restoreHiddenAnime(key) {
+    if (state.hiddenAnimeMap.has(key)) {
+        state.hiddenAnimeMap.delete(key);
+        saveHiddenAnime();
+        updateHiddenAnimeButton();
+        renderHiddenAnimeList();
+        renderSchedule();
+    }
+}
+
+function restoreAllHiddenAnime() {
+    if (state.hiddenAnimeMap.size === 0) return;
+    state.hiddenAnimeMap.clear();
+    saveHiddenAnime();
+    updateHiddenAnimeButton();
+    renderHiddenAnimeList();
+    renderSchedule();
+}
+
+function openHiddenAnimeModal() {
+    renderHiddenAnimeList();
+    const modal = document.getElementById('hiddenAnimeModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeHiddenAnimeModal() {
+    const modal = document.getElementById('hiddenAnimeModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+}
+
+function renderHiddenAnimeList() {
+    const listEl = document.getElementById('hiddenAnimeList');
+    const restoreAllBtn = document.getElementById('restoreAllHiddenBtn');
+    if (!listEl) return;
+
+    listEl.innerHTML = '';
+    const items = Array.from(state.hiddenAnimeMap.values());
+    const isPolish = (navigator.language && navigator.language.startsWith('pl')) || !navigator.language;
+
+    if (items.length === 0) {
+        listEl.innerHTML = `
+            <div class="hidden-empty-state">
+                <div class="hidden-empty-icon">✨</div>
+                <p><strong>${isPolish ? 'Brak ukrytych anime' : 'No hidden anime'}</strong></p>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+                    ${isPolish ? 'Kliknij ikonkę przekreślonego oka na kafelku, aby ukryć wybraną serię.' : 'Click the eye icon on any episode card to hide that series.'}
+                </p>
+            </div>
+        `;
+        if (restoreAllBtn) {
+            restoreAllBtn.style.display = 'none';
+        }
+        return;
+    }
+
+    if (restoreAllBtn) {
+        restoreAllBtn.style.display = 'inline-flex';
+        restoreAllBtn.textContent = isPolish ? 'Przywróć wszystkie' : 'Restore All';
+    }
+
+    // Sort alphabetically by current title preference
+    items.sort((a, b) => {
+        const titleA = state.titleLang === 'romaji' ? (a.titleRomaji || a.titleEnglish) : (a.titleEnglish || a.titleRomaji);
+        const titleB = state.titleLang === 'romaji' ? (b.titleRomaji || b.titleEnglish) : (b.titleEnglish || b.titleRomaji);
+        return titleA.localeCompare(titleB);
+    });
+
+    items.forEach(item => {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'hidden-anime-item';
+
+        const displayTitle = state.titleLang === 'romaji' 
+            ? (item.titleRomaji || item.titleEnglish || item.displayTitle)
+            : (item.titleEnglish || item.titleRomaji || item.displayTitle);
+
+        const subTitle = state.titleLang === 'romaji' ? item.titleEnglish : item.titleRomaji;
+
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'hidden-anime-info';
+
+        const posterImg = document.createElement('img');
+        posterImg.className = 'hidden-anime-poster';
+        posterImg.src = item.coverImage || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="34" height="48"><rect width="100%" height="100%" fill="%23333"/></svg>';
+        posterImg.alt = displayTitle;
+        posterImg.loading = 'lazy';
+        infoDiv.appendChild(posterImg);
+
+        const titlesDiv = document.createElement('div');
+        titlesDiv.className = 'hidden-anime-titles';
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'hidden-anime-title';
+        titleDiv.textContent = displayTitle;
+        titleDiv.title = displayTitle;
+        titlesDiv.appendChild(titleDiv);
+
+        const subDiv = document.createElement('div');
+        subDiv.className = 'hidden-anime-sub';
+        let subText = item.format || 'TV';
+        if (item.totalEpisodes) {
+            subText += ` • ${item.totalEpisodes} eps`;
+        }
+        if (subTitle && subTitle !== displayTitle) {
+            subText += ` • ${subTitle}`;
+        }
+        subDiv.textContent = subText;
+        titlesDiv.appendChild(subDiv);
+
+        infoDiv.appendChild(titlesDiv);
+        itemEl.appendChild(infoDiv);
+
+        const restoreBtn = document.createElement('button');
+        restoreBtn.className = 'btn-restore';
+        restoreBtn.innerHTML = `↩️ ${isPolish ? 'Przywróć' : 'Restore'}`;
+        restoreBtn.title = isPolish ? 'Przywróć tę serię do kalendarza' : 'Restore this series to schedule';
+        restoreBtn.addEventListener('click', () => {
+            restoreHiddenAnime(item.key);
+        });
+        itemEl.appendChild(restoreBtn);
+
+        listEl.appendChild(itemEl);
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     loadStoredUser();
+    loadHiddenAnime();
     updateTitleLangButton();
+    updateHiddenAnimeButton();
     setupEventListeners();
     startLiveTickers();
 
@@ -142,8 +357,35 @@ function setupEventListeners() {
             localStorage.setItem('anime_cal_title_lang', state.titleLang);
             updateTitleLangButton();
             renderSchedule();
+            const hModal = document.getElementById('hiddenAnimeModal');
+            if (hModal && !hModal.classList.contains('hidden')) {
+                renderHiddenAnimeList();
+            }
         });
     }
+
+    const hiddenBtn = document.getElementById('hiddenAnimeBtn');
+    if (hiddenBtn) {
+        hiddenBtn.addEventListener('click', () => {
+            openHiddenAnimeModal();
+        });
+    }
+
+    const hiddenModal = document.getElementById('hiddenAnimeModal');
+    if (hiddenModal) {
+        hiddenModal.addEventListener('click', (e) => {
+            if (e.target.id === 'hiddenAnimeModal') {
+                closeHiddenAnimeModal();
+            }
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeModal();
+            closeHiddenAnimeModal();
+        }
+    });
 
     document.getElementById('themeToggle').addEventListener('click', () => {
         const current = document.documentElement.getAttribute('data-theme');
@@ -386,8 +628,9 @@ function renderSchedule() {
         const colDayOfWeek = colDate.getDay();
         const isToday = (colDate.getTime() === todayMidTime);
 
-        // Filter all episodes matching this local date
+        // Filter all episodes matching this local date and exclude hidden anime
         const dayEps = state.allEpisodes.filter(ep => {
+            if (isAnimeHidden(ep)) return false;
             const epDate = new Date(ep.airingAt);
             return epDate.getFullYear() === colYear &&
                    epDate.getMonth() === colMonth &&
@@ -521,7 +764,7 @@ function createAnimeCard(ep) {
     const content = document.createElement('div');
     content.className = 'card-content';
 
-    // Top row: Airing Time & Countdown
+    // Top row: Airing Time & Actions (Countdown + Hide Button)
     const timeRow = document.createElement('div');
     timeRow.className = 'card-time-row';
 
@@ -530,12 +773,27 @@ function createAnimeCard(ep) {
     airTimeSpan.textContent = formatLocalTime(ep.airingAt);
     timeRow.appendChild(airTimeSpan);
 
+    const timeActions = document.createElement('div');
+    timeActions.className = 'card-time-actions';
+
     const countdownSpan = document.createElement('span');
     const countdownInfo = getCountdownInfo(ep.airingAt);
     countdownSpan.className = `card-countdown ${countdownInfo.statusClass}`;
     countdownSpan.textContent = countdownInfo.text;
-    timeRow.appendChild(countdownSpan);
+    timeActions.appendChild(countdownSpan);
 
+    const hideBtn = document.createElement('button');
+    hideBtn.className = 'card-hide-btn';
+    hideBtn.title = 'Ukryj tę serię / Hide this anime';
+    hideBtn.setAttribute('aria-label', 'Hide anime');
+    hideBtn.innerHTML = `<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3.5"/><line x1="21" y1="3" x2="3" y2="21"/></svg>`;
+    hideBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        hideAnimeSeries(ep);
+    });
+    timeActions.appendChild(hideBtn);
+
+    timeRow.appendChild(timeActions);
     content.appendChild(timeRow);
 
     // Title
